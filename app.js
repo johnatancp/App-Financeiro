@@ -874,6 +874,7 @@ function getContasNotificadas() {
 function renderSinoDot() {
   const temNotificacao = getContasNotificadas().length > 0;
   document.getElementById('sino-dot').classList.toggle('hidden', !temNotificacao);
+  document.getElementById('sino-dot-mobile').classList.toggle('hidden', !temNotificacao);
 }
 
 function renderNotificacoesModal() {
@@ -886,10 +887,12 @@ function renderNotificacoesModal() {
     : '<div class="empty-state">Nenhuma conta precisando de atenção agora.</div>';
 }
 
-document.getElementById('btn-sino').addEventListener('click', () => {
+function abrirNotificacoes() {
   renderNotificacoesModal();
   openModal(document.getElementById('modal-notificacoes'));
-});
+}
+document.getElementById('btn-sino').addEventListener('click', abrirNotificacoes);
+document.getElementById('btn-sino-mobile').addEventListener('click', abrirNotificacoes);
 
 function openConfirmarPagamento(rec, key) {
   document.getElementById('cp-recorrente-id').value = rec.id;

@@ -723,6 +723,8 @@ html, body {
     z-index: 40;
   }
   .mobile-topbar .brand { padding: 0; font-size: 16px; }
+  .mobile-topbar-left { display: flex; align-items: center; gap: 4px; }
+  #btn-sino { display: none; }
   .fab-rapido {
     display: flex;
     align-items: center;

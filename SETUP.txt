@@ -138,6 +138,12 @@ de perder nada.
    hospedagem). Depois de confirmar que tá tudo certo, pode parar de
    usar o Netlify (não precisa deletar nada, só não usar mais).
 
+ATUALIZANDO O SITE NO GITHUB (depois de qualquer mudança no app):
+   - Abra o repositório no GitHub > "Add file" > "Upload files".
+   - Arraste os arquivos de dentro da pasta "App Financeiro" (os que
+     mudaram, ou todos — o GitHub só substitui os de mesmo nome).
+   - Role pra baixo > "Commit changes". O link continua o mesmo.
+
 
 OBSERVAÇÕES
 =============

@@ -35,7 +35,13 @@
 
 <div id="app" class="app hidden">
   <div class="mobile-topbar">
-    <div class="brand">Financeiro</div>
+    <div class="mobile-topbar-left">
+      <div class="brand">Financeiro</div>
+      <button id="btn-sino-mobile" class="sino-btn" title="Contas que precisam de atenção">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9a6 6 0 0 1 12 0c0 4 1.5 5.5 1.5 5.5H4.5S6 13 6 9Z"/><path d="M10 18a2 2 0 0 0 4 0"/></svg>
+        <span id="sino-dot-mobile" class="sino-dot hidden"></span>
+      </button>
+    </div>
     <button id="btn-hamburger" class="hamburger-btn">☰</button>
   </div>
   <div id="sidebar-overlay" class="sidebar-overlay"></div>
