@@ -1,0 +1,153 @@
+CONFIGURAÇÃO ÚNICA — GOOGLE + HOSPEDAGEM
+==========================================
+Isso você faz uma vez só. Depois é só usar. Leva uns 15-20 minutos.
+
+A ORDEM IMPORTA: primeiro publicamos o site (pra ter o endereço),
+depois configuramos o Google usando esse endereço.
+
+
+PARTE 1 — Publicar o app no Netlify
+------------------------------------
+1. Abra https://app.netlify.com/drop no navegador.
+2. Arraste esta pasta inteira ("App Financeiro") pra dentro da área
+   marcada na página. (Se pedir, arraste o CONTEÚDO da pasta, não a
+   pasta em si — o importante é que o index.html fique na raiz.)
+3. Em alguns segundos o Netlify gera um endereço tipo:
+   https://algum-nome-aleatorio.netlify.app
+   Copie esse endereço, vai precisar dele no próximo passo.
+4. (Opcional, recomendado) Clique em "Sign up" no canto e crie uma
+   conta gratuita (dá pra entrar com Google) — assim esse link não
+   expira e você pode até trocar o nome do site pra algo tipo
+   "meu-financeiro.netlify.app" em Site settings > Change site name.
+
+
+PARTE 2 — Criar as credenciais no Google Cloud
+------------------------------------------------
+1. Acesse https://console.cloud.google.com/ e faça login com a conta
+   Google que você quer usar pro app (a mesma cujo Drive vai guardar
+   os dados).
+
+2. Criar o projeto:
+   - No topo, clique no seletor de projeto > "Novo projeto".
+   - Nome: "App Financeiro" (ou o que preferir) > Criar.
+   - Espere alguns segundos e selecione esse projeto novo no topo.
+
+3. Ativar a Drive API:
+   - Menu (≡) > APIs e serviços > Biblioteca.
+   - Busque "Google Drive API" > abra > clique "Ativar".
+
+4. Configurar a Tela de consentimento OAuth:
+   - Menu (≡) > APIs e serviços > Tela de permissão OAuth.
+   - Tipo de usuário: "Externo" > Criar.
+   - Nome do app: "App Financeiro". E-mail de suporte: o seu e-mail.
+   - E-mail do desenvolvedor (embaixo): o seu e-mail. > Salvar e continuar.
+   - Na tela de "Escopos", pode pular (Salvar e continuar).
+   - Na tela "Usuários de teste", clique "Add users" e adicione o
+     seu próprio e-mail do Google. > Salvar e continuar.
+   - Isso é o suficiente — não precisa publicar/verificar o app,
+     porque só você vai usá-lo.
+
+5. Criar a credencial (Client ID):
+   - Menu (≡) > APIs e serviços > Credenciais.
+   - "+ Criar credenciais" > "ID do cliente OAuth".
+   - Tipo de aplicativo: "Aplicativo da Web".
+   - Nome: "App Financeiro Web".
+   - Em "Origens JavaScript autorizadas", clique "+ Adicionar URI" e
+     cole o endereço do Netlify que você copiou na Parte 1
+     (ex: https://algum-nome-aleatorio.netlify.app) — sem barra "/"
+     no final.
+   - Clique "Criar".
+   - Vai aparecer uma janela com o "Client ID" (uma string longa
+     terminando em ".apps.googleusercontent.com"). Copie ela.
+
+
+PARTE 3 — Colar a credencial no app
+--------------------------------------
+1. Abra o arquivo "config.js" desta pasta num editor de texto (pode
+   ser o Bloco de Notas mesmo).
+2. Troque o texto 'COLE_AQUI_SEU_CLIENT_ID.apps.googleusercontent.com'
+   pelo Client ID que você copiou, mantendo as aspas. Fica assim:
+
+   const CONFIG = {
+     CLIENT_ID: '123456789-abcxyz.apps.googleusercontent.com',
+   };
+
+3. Salve o arquivo.
+4. Volte em https://app.netlify.com/drop e arraste a pasta de novo
+   (agora com o config.js atualizado) pra publicar a versão nova.
+   Se você criou conta no Netlify, pode simplesmente arrastar de novo
+   no mesmo site pra atualizar, em vez de criar um site novo.
+
+
+PARTE 4 — Testar
+-------------------
+1. Abra o endereço do Netlify no navegador do computador.
+2. Clique em "Entrar com Google", escolha sua conta, aceite a tela
+   de permissão (ela vai avisar que o app não foi verificado pelo
+   Google — isso é normal e esperado pra um app pessoal; clique em
+   "Avançado" > "Acessar App Financeiro (não seguro)").
+3. Lance uma transação de teste.
+4. No celular, abra o MESMO endereço do Netlify, entre com a mesma
+   conta Google, e confira se a transação aparece.
+
+
+PARTE 5 — Migrando do Netlify pro GitHub Pages
+-------------------------------------------------
+Se um dia quiser trocar de hospedagem (o Netlify grátis tem um limite
+mensal de "créditos" que pode acabar; o GitHub Pages não tem esse
+problema pra um site simples como este), o processo é rápido porque
+seus dados ficam no Google Drive, não na hospedagem — não tem risco
+de perder nada.
+
+1. Crie um repositório novo em https://github.com/new
+   - Nome: qualquer um, ex "app-financeiro"
+   - Marque como "Public" (não tem nada sensível no código — o Client
+     ID do Google não é secreto, ele é feito pra ficar público)
+   - Não marque "Add a README" — deixe vazio mesmo.
+   - Clique "Create repository".
+
+2. Na página do repositório recém-criado, clique no link
+   "uploading an existing file" (ou vá em "Add file" > "Upload files").
+   ATENÇÃO: abra a pasta "App Financeiro" no Explorador de Arquivos
+   primeiro, aperte Ctrl+A pra selecionar TODOS os arquivos de DENTRO
+   dela, e arraste esses arquivos selecionados pro navegador — nunca
+   arraste a pastinha "App Financeiro" inteira. Se arrastar a pasta,
+   o GitHub cria uma subpasta e o site não funciona (dá erro 404).
+   Depois de soltar os arquivos, role pra baixo e clique
+   "Commit changes".
+
+3. Ative o GitHub Pages:
+   - Vá em "Settings" (aba do repositório) > "Pages" (menu à esquerda).
+   - Em "Source", escolha "Deploy from a branch".
+   - Em "Branch", escolha "main" e a pasta "/ (root)" > Save.
+   - Espere 1-2 minutos. A página vai mostrar o endereço, algo como:
+     https://seu-usuario.github.io/app-financeiro/
+
+4. Adicione esse novo endereço no Google Cloud:
+   - Volte em https://console.cloud.google.com/ > APIs e serviços >
+     Credenciais > clique no Client ID que você já criou.
+   - Em "Origens JavaScript autorizadas", clique "+ Adicionar URI" e
+     cole o endereço do GitHub Pages (sem "/" no final, ex:
+     https://seu-usuario.github.io — só o domínio, sem o nome do
+     repositório no final).
+   - Salvar. Pode deixar o endereço antigo do Netlify na lista também,
+     não atrapalha nada.
+
+5. Abra o novo endereço do GitHub Pages, faça login com Google — seus
+   dados aparecem automaticamente (eles vêm do Drive, não da
+   hospedagem). Depois de confirmar que tá tudo certo, pode parar de
+   usar o Netlify (não precisa deletar nada, só não usar mais).
+
+
+OBSERVAÇÕES
+=============
+- Os dados ficam guardados numa área privada do seu Google Drive
+  (pasta de dados do app — não aparece na listagem normal do Drive,
+  mas é sua e só o app tem acesso). Use o botão "Baixar backup" na
+  barra lateral sempre que quiser uma cópia visível em .json.
+- Como o app fica em modo "Teste" no Google Cloud, o login pode
+  pedir pra você confirmar de novo depois de alguns dias — é só
+  clicar em "Entrar com Google" outra vez, sem perder nada.
+- Se um dia quiser, dá pra "publicar" o app no Google Cloud pra não
+  precisar mais do aviso de "app não verificado", mas isso não é
+  necessário pra uso pessoal.

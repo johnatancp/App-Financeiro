@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "categories": [
+    {
+      "id": "mt4wxtobtkxzl6l",
+      "nome": "Moradia",
+      "cor": "#d4a95e"
+    },
+    {
+      "id": "mt4wxtob22fg530",
+      "nome": "Alimentação",
+      "cor": "#34d399"
+    },
+    {
+      "id": "mt4wxtobmrkzzgx",
+      "nome": "Transporte",
+      "cor": "#60a5fa"
+    },
+    {
+      "id": "mt4wxtobug1rz4r",
+      "nome": "Saúde",
+      "cor": "#f472b6"
+    },
+    {
+      "id": "mt4wxtob4wnciyp",
+      "nome": "Lazer",
+      "cor": "#a78bfa"
+    },
+    {
+      "id": "mt4wxtob1aa1dx0",
+      "nome": "Educação",
+      "cor": "#38bdf8"
+    },
+    {
+      "id": "mt4wxtob801h58s",
+      "nome": "Assinaturas",
+      "cor": "#fb923c"
+    },
+    {
+      "id": "mt4wxtob05anqah",
+      "nome": "Salário",
+      "cor": "#4ade80"
+    },
+    {
+      "id": "mt4wxtob96snap5",
+      "nome": "Outros",
+      "cor": "#9ca3af"
+    }
+  ],
+  "transactions": [],
+  "recurring": []
+}

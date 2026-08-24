@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Financeiro</title>
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNyIgZmlsbD0iIzEwMTIxNyIvPjx0ZXh0IHg9IjE2IiB5PSIyMyIgZm9udC1mYW1pbHk9IkFyaWFsLCBIZWx2ZXRpY2EsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjAiIGZvbnQtd2VpZ2h0PSI3MDAiIGZpbGw9IiNkNGE5NWUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPiQ8L3RleHQ+PC9zdmc+">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#101217">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="login-screen" class="fullscreen-msg hidden">
+  <div class="fs-card">
+    <h1>Financeiro</h1>
+    <p>Entre com sua conta Google para sincronizar seus lançamentos entre o computador e o celular.</p>
+    <div class="fs-actions">
+      <button id="btn-login" class="btn btn-primary">Entrar com Google</button>
+    </div>
+    <p id="login-error" class="fs-error hidden"></p>
+  </div>
+</div>
+
+<div id="loading-screen" class="fullscreen-msg hidden">
+  <div class="fs-card">
+    <h1>Financeiro</h1>
+    <p>Carregando seus dados…</p>
+  </div>
+</div>
+
+<div id="app" class="app hidden">
+  <div class="mobile-topbar">
+    <div class="brand">Financeiro</div>
+    <button id="btn-hamburger" class="hamburger-btn">☰</button>
+  </div>
+  <div id="sidebar-overlay" class="sidebar-overlay"></div>
+  <nav id="sidebar" class="sidebar">
+    <div class="brand-row">
+      <div class="brand">Financeiro</div>
+      <button id="btn-sino" class="sino-btn" title="Contas que precisam de atenção">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9a6 6 0 0 1 12 0c0 4 1.5 5.5 1.5 5.5H4.5S6 13 6 9Z"/><path d="M10 18a2 2 0 0 0 4 0"/></svg>
+        <span id="sino-dot" class="sino-dot hidden"></span>
+      </button>
+    </div>
+    <button class="nav-item active" data-view="dashboard">Painel</button>
+    <button class="nav-item" data-view="transacoes">Transações</button>
+    <button class="nav-item" data-view="recorrentes">Contas fixas</button>
+    <button class="nav-item" data-view="categorias">Categorias</button>
+    <button class="nav-item" data-view="pessoas">Pessoas</button>
+    <div class="sidebar-spacer"></div>
+    <button id="btn-backup" class="nav-item">Baixar backup</button>
+    <button id="btn-logout" class="nav-item">Sair</button>
+    <div id="save-status" class="save-status">Salvo</div>
+  </nav>
+
+  <main class="content">
+
+    <section id="view-dashboard" class="view active">
+      <button id="btn-fab-rapido" class="fab-rapido" title="Lançamento rápido">+</button>
+      <header class="view-header">
+        <h1>Painel</h1>
+        <div class="header-actions">
+          <div id="pessoa-filter" class="pessoa-filter"></div>
+          <div class="month-picker">
+            <button id="month-prev" class="icon-btn">‹</button>
+            <span id="month-label"></span>
+            <button id="month-next" class="icon-btn">›</button>
+          </div>
+        </div>
+      </header>
+
+      <div class="cards-row stats-row">
+        <div class="card stat-card stat-card-saldo">
+          <div class="stat-label">Saldo total</div>
+          <div id="stat-saldo" class="stat-value stat-value-lg">R$ 0,00</div>
+          <div class="stat-sub-row">
+            <span class="stat-sub positive"><span class="stat-sub-arrow">↑</span><span id="stat-a-receber">R$ 0,00</span></span>
+            <span class="stat-sub negative"><span class="stat-sub-arrow">↓</span><span id="stat-a-pagar">R$ 0,00</span></span>
+          </div>
+          <div class="stat-previsto">
+            <span class="stat-previsto-label">Previsto do mês</span>
+            <span class="stat-previsto-eq">=</span>
+            <span id="stat-saldo-previsto" class="stat-previsto-value">R$ 0,00</span>
+          </div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-label">Receitas do mês</div>
+          <div id="stat-receitas" class="stat-value positive">R$ 0,00</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-label">Despesas do mês</div>
+          <div id="stat-despesas" class="stat-value negative">R$ 0,00</div>
+        </div>
+      </div>
+
+      <div class="cards-row two-col">
+        <div class="card">
+          <div class="card-header-row">
+            <h2>Despesas</h2>
+            <select id="despesas-view-select" class="select-inline">
+              <option value="recentes">Despesas recentes</option>
+              <option value="categoria">Por categoria</option>
+            </select>
+          </div>
+          <div id="chart-categorias" class="chart-wrap"></div>
+        </div>
+        <div class="card">
+          <h2>Últimos 6 meses</h2>
+          <div id="chart-meses" class="chart-wrap"></div>
+        </div>
+      </div>
+
+      <div id="card-comparativo" class="card hidden">
+        <h2>Comparativo entre pessoas — este mês</h2>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Pessoa</th>
+              <th class="right">Receitas</th>
+              <th class="right">Despesas</th>
+              <th class="right">Saldo do mês</th>
+            </tr>
+          </thead>
+          <tbody id="comparativo-tbody"></tbody>
+        </table>
+      </div>
+
+      <h2 class="section-title">Contas fixas do mês</h2>
+      <div id="dashboard-recorrentes-row" class="cards-row two-col">
+        <div class="card">
+          <div class="card-header-row">
+            <h2>Em aberto</h2>
+            <select id="recorrentes-sort-select-aberto" class="select-inline">
+              <option value="vencimento">Vencimento</option>
+              <option value="valor">Valor</option>
+              <option value="alfabetica">Ordem alfabética</option>
+              <option value="categoria">Categoria</option>
+            </select>
+          </div>
+          <div id="dashboard-recorrentes-aberto" class="recorrentes-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-header-row">
+            <h2>Pagas</h2>
+            <select id="recorrentes-sort-select-pago" class="select-inline">
+              <option value="vencimento">Vencimento</option>
+              <option value="valor">Valor</option>
+              <option value="alfabetica">Ordem alfabética</option>
+              <option value="categoria">Categoria</option>
+            </select>
+          </div>
+          <div id="dashboard-recorrentes-pago" class="recorrentes-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-transacoes" class="view">
+      <header class="view-header">
+        <h1>Transações</h1>
+        <div class="header-actions">
+          <div id="pessoa-filter-2" class="pessoa-filter"></div>
+          <div class="month-picker">
+            <button id="month-prev-2" class="icon-btn">‹</button>
+            <span id="month-label-2"></span>
+            <button id="month-next-2" class="icon-btn">›</button>
+          </div>
+          <button id="btn-add-transacao" class="btn btn-primary">+ Nova transação</button>
+        </div>
+      </header>
+      <div class="card">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th class="sortable" data-field="data">Data <span class="sort-arrow"></span></th>
+              <th class="sortable" data-field="descricao">Descrição <span class="sort-arrow"></span></th>
+              <th class="sortable" data-field="categoria">Categoria <span class="sort-arrow"></span></th>
+              <th class="sortable" data-field="pessoa">Pessoa <span class="sort-arrow"></span></th>
+              <th class="right sortable" data-field="valor">Valor <span class="sort-arrow"></span></th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="transacoes-tbody"></tbody>
+        </table>
+        <div id="transacoes-empty" class="empty-state hidden">Nenhuma transação neste mês.</div>
+      </div>
+    </section>
+
+    <section id="view-recorrentes" class="view">
+      <header class="view-header">
+        <h1>Contas fixas</h1>
+        <button id="btn-add-recorrente" class="btn btn-primary">+ Nova conta fixa</button>
+      </header>
+      <div class="card">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th class="sortable" data-field="descricao">Descrição <span class="sort-arrow"></span></th>
+              <th class="sortable" data-field="categoria">Categoria <span class="sort-arrow"></span></th>
+              <th class="sortable" data-field="pessoa">Pessoa <span class="sort-arrow"></span></th>
+              <th class="sortable" data-field="dia">Dia venc. <span class="sort-arrow"></span></th>
+              <th class="right sortable" data-field="valor">Valor <span class="sort-arrow"></span></th>
+              <th class="sortable" data-field="tipo">Tipo <span class="sort-arrow"></span></th>
+              <th>Repetição</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="recorrentes-tbody"></tbody>
+        </table>
+        <div id="recorrentes-empty" class="empty-state hidden">Nenhuma conta fixa cadastrada.</div>
+      </div>
+    </section>
+
+    <section id="view-categorias" class="view">
+      <header class="view-header">
+        <h1>Categorias</h1>
+        <button id="btn-add-categoria" class="btn btn-primary">+ Nova categoria</button>
+      </header>
+      <p class="section-hint">Clique numa categoria para trocar o ícone por um seu (arquivo SVG).</p>
+      <div class="card">
+        <div id="categorias-list" class="categorias-list"></div>
+      </div>
+    </section>
+
+    <section id="view-pessoas" class="view">
+      <header class="view-header">
+        <h1>Pessoas</h1>
+        <button id="btn-add-pessoa" class="btn btn-primary">+ Nova pessoa</button>
+      </header>
+      <div class="card">
+        <div id="pessoas-list" class="categorias-list"></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div id="modal-overlay" class="modal-overlay hidden">
+  <div id="modal-transacao" class="modal hidden">
+    <h2 id="modal-transacao-title">Nova transação</h2>
+    <form id="form-transacao">
+      <input type="hidden" id="t-id">
+      <div class="field-row">
+        <label class="type-toggle">
+          <input type="radio" name="t-tipo" value="despesa" checked> <span>Despesa</span>
+        </label>
+        <label class="type-toggle">
+          <input type="radio" name="t-tipo" value="receita"> <span>Receita</span>
+        </label>
+        <label class="type-toggle">
+          <input type="radio" name="t-tipo" value="balanco"> <span>Balanço</span>
+        </label>
+      </div>
+      <div id="t-operacao-row" class="field-row hidden">
+        <label class="type-toggle">
+          <input type="radio" name="t-operacao" value="soma" checked> <span>Somar ao saldo</span>
+        </label>
+        <label class="type-toggle">
+          <input type="radio" name="t-operacao" value="subtrai"> <span>Subtrair do saldo</span>
+        </label>
+      </div>
+      <label>Descrição
+        <input type="text" id="t-desc" required placeholder="Ex: Supermercado">
+      </label>
+      <div class="field-row">
+        <label>Valor
+          <input type="number" id="t-valor" step="0.01" min="0.01" required placeholder="0,00">
+        </label>
+        <label>Data
+          <input type="date" id="t-data" required>
+        </label>
+      </div>
+      <div class="field-row">
+        <label id="t-categoria-row">Categoria
+          <select id="t-categoria" required></select>
+        </label>
+        <label>Pessoa
+          <select id="t-pessoa" required></select>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="btn-delete-transacao" class="btn btn-danger hidden">Excluir</button>
+        <div class="modal-actions-right">
+          <button type="button" class="btn btn-ghost modal-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div id="modal-recorrente" class="modal hidden">
+    <h2 id="modal-recorrente-title">Nova conta fixa</h2>
+    <form id="form-recorrente">
+      <input type="hidden" id="r-id">
+      <div class="field-row">
+        <label class="type-toggle">
+          <input type="radio" name="r-tipo" value="despesa" checked> <span>Despesa</span>
+        </label>
+        <label class="type-toggle">
+          <input type="radio" name="r-tipo" value="receita"> <span>Receita</span>
+        </label>
+      </div>
+      <label>Descrição
+        <input type="text" id="r-desc" required placeholder="Ex: Aluguel">
+      </label>
+      <div class="field-row">
+        <label>Valor
+          <input type="number" id="r-valor" step="0.01" min="0.01" required placeholder="0,00">
+        </label>
+        <label>Dia do vencimento
+          <input type="number" id="r-dia" min="1" max="31" required placeholder="1-31">
+        </label>
+      </div>
+      <div id="r-inicio-row" class="field-row">
+        <label class="type-toggle">
+          <input type="radio" name="r-inicio" value="atual" checked> <span>Começa este mês</span>
+        </label>
+        <label class="type-toggle">
+          <input type="radio" name="r-inicio" value="proximo"> <span>Começa mês que vem</span>
+        </label>
+      </div>
+      <div class="field-row">
+        <label class="type-toggle">
+          <input type="radio" name="r-repeticao" value="sempre" checked> <span>Repetir sempre</span>
+        </label>
+        <label class="type-toggle">
+          <input type="radio" name="r-repeticao" value="limitada"> <span>Repetir só alguns meses</span>
+        </label>
+      </div>
+      <div id="r-parcelas-row" class="field-row hidden">
+        <label>Quantos meses (parcelas)
+          <input type="number" id="r-parcelas" min="1" max="600" placeholder="Ex: 12">
+        </label>
+      </div>
+      <div class="field-row">
+        <label>Categoria
+          <select id="r-categoria" required></select>
+        </label>
+        <label>Pessoa
+          <select id="r-pessoa" required></select>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="btn-delete-recorrente" class="btn btn-danger hidden">Excluir</button>
+        <div class="modal-actions-right">
+          <button type="button" class="btn btn-ghost modal-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div id="modal-categoria" class="modal hidden">
+    <h2 id="modal-categoria-title">Nova categoria</h2>
+    <form id="form-categoria">
+      <input type="hidden" id="c-id">
+      <label>Nome
+        <input type="text" id="c-nome" required placeholder="Ex: Alimentação">
+      </label>
+      <label>Cor
+        <input type="color" id="c-cor" value="#d4a95e">
+      </label>
+      <div class="icon-field">
+        <div class="icon-field-label">Ícone</div>
+        <div id="c-icone-grid" class="icon-grid"></div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="btn-delete-categoria" class="btn btn-danger hidden">Excluir</button>
+        <div class="modal-actions-right">
+          <button type="button" class="btn btn-ghost modal-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div id="modal-pessoa" class="modal hidden">
+    <h2 id="modal-pessoa-title">Nova pessoa</h2>
+    <form id="form-pessoa">
+      <input type="hidden" id="p-id">
+      <label>Nome
+        <input type="text" id="p-nome" required placeholder="Ex: Você, Esposa...">
+      </label>
+      <label>Cor
+        <input type="color" id="p-cor" value="#d4a95e">
+      </label>
+      <div class="icon-field">
+        <div class="icon-field-label">Foto</div>
+        <div class="icon-field-row">
+          <div id="p-avatar-preview" class="avatar-preview-circle"></div>
+          <input type="file" id="p-avatar-file" accept="image/*" class="hidden">
+          <button type="button" id="btn-upload-avatar" class="btn btn-secondary">Enviar foto</button>
+          <button type="button" id="btn-remove-avatar" class="btn btn-ghost hidden">Remover foto</button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="btn-delete-pessoa" class="btn btn-danger hidden">Excluir</button>
+        <div class="modal-actions-right">
+          <button type="button" class="btn btn-ghost modal-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div id="modal-rapido" class="modal hidden">
+    <h2>Lançamento rápido</h2>
+    <form id="form-rapido">
+      <div class="field-row">
+        <label class="type-toggle">
+          <input type="radio" name="q-tipo" value="despesa" checked> <span>Despesa</span>
+        </label>
+        <label class="type-toggle">
+          <input type="radio" name="q-tipo" value="receita"> <span>Receita</span>
+        </label>
+      </div>
+      <label>Descrição
+        <input type="text" id="q-desc" required placeholder="Ex: Café">
+      </label>
+      <label>Valor
+        <input type="number" id="q-valor" step="0.01" min="0.01" required placeholder="0,00">
+      </label>
+      <p class="icon-hint">Categoria e pessoa você ajusta depois, em Transações.</p>
+      <div class="modal-actions">
+        <div class="modal-actions-right">
+          <button type="button" class="btn btn-ghost modal-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div id="modal-confirmar-pagamento" class="modal hidden">
+    <h2 id="modal-confirmar-title">Confirmar pagamento</h2>
+    <form id="form-confirmar-pagamento">
+      <input type="hidden" id="cp-recorrente-id">
+      <input type="hidden" id="cp-key">
+      <label>Valor
+        <input type="number" id="cp-valor" step="0.01" min="0.01" required placeholder="0,00">
+      </label>
+      <p class="icon-hint">Esse valor também vira a estimativa pro próximo mês.</p>
+      <div class="modal-actions">
+        <div class="modal-actions-right">
+          <button type="button" class="btn btn-ghost modal-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Confirmar</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div id="modal-notificacoes" class="modal hidden">
+    <h2>Contas que precisam de atenção</h2>
+    <div id="notificacoes-list" class="recorrentes-list"></div>
+    <div class="modal-actions">
+      <div class="modal-actions-right">
+        <button type="button" class="btn btn-ghost modal-cancel">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
