@@ -562,6 +562,62 @@ function sortDashboardRecorrentes(list, mode) {
   return arr;
 }
 
+// ---------- Seleção múltipla (estilo Excel, desktop) ----------
+let selectedKeys = new Set();
+
+function toggleSelecao(key) {
+  if (selectedKeys.has(key)) selectedKeys.delete(key);
+  else selectedKeys.add(key);
+  renderSelecaoUI();
+}
+
+function limparSelecao() {
+  if (selectedKeys.size === 0) return;
+  selectedKeys.clear();
+  renderSelecaoUI();
+}
+
+function calcularSomaSelecao() {
+  let soma = 0;
+  selectedKeys.forEach((key) => {
+    const idx = key.indexOf(':');
+    const tipo = key.slice(0, idx);
+    const id = key.slice(idx + 1);
+    if (tipo === 'transacao') {
+      const t = data.transactions.find((x) => x.id === id);
+      if (t) soma += transactionSign(t) * t.valor;
+    } else if (tipo === 'recorrente') {
+      const r = data.recurring.find((x) => x.id === id);
+      if (r) soma += (r.tipo === 'despesa' ? -1 : 1) * r.valor;
+    }
+  });
+  return soma;
+}
+
+function renderSelecaoUI() {
+  document.querySelectorAll('tr[data-selecao-key], .recorrente-row[data-selecao-key], .recent-expense-row[data-selecao-key]').forEach((el) => {
+    el.classList.toggle('selecionado', selectedKeys.has(el.dataset.selecaoKey));
+  });
+  const widget = document.getElementById('selecao-resumo');
+  if (selectedKeys.size === 0) {
+    widget.classList.add('hidden');
+    return;
+  }
+  widget.classList.remove('hidden');
+  document.getElementById('selecao-resumo-valor').textContent = formatCurrency(calcularSomaSelecao());
+}
+
+function handleSelecaoClick(e, key) {
+  if (!(e.ctrlKey || e.metaKey)) return false;
+  e.preventDefault();
+  toggleSelecao(key);
+  return true;
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') limparSelecao();
+});
+
 // ---------- Navegação ----------
 function toggleSidebar(open) {
   document.getElementById('sidebar').classList.toggle('open', open);
@@ -603,6 +659,7 @@ function renderAll() {
   renderCategorias();
   renderPessoas();
   renderSinoDot();
+  renderSelecaoUI();
 }
 function capitalize(s) {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -706,6 +763,11 @@ document.getElementById('despesas-view-select').addEventListener('change', (e) =
   renderDespesasCard(monthKey(currentDate));
 });
 
+document.getElementById('chart-categorias').addEventListener('click', (e) => {
+  const rowSel = e.target.closest('[data-selecao-key]');
+  if (rowSel) handleSelecaoClick(e, rowSel.dataset.selecaoKey);
+});
+
 function renderDespesasCard(key) {
   document.getElementById('despesas-view-select').value = despesasViewMode;
   if (despesasViewMode === 'recentes') {
@@ -729,7 +791,7 @@ function renderDespesasRecentesList() {
     .map((t) => {
       const cat = getCategoria(t.categoriaId);
       return `
-    <div class="recent-expense-row">
+    <div class="recent-expense-row" data-selecao-key="transacao:${t.id}">
       ${categoryIconBadge(cat)}
       <div class="recent-expense-info">
         <div class="recent-expense-desc">${escapeHtml(t.descricao)}</div>
@@ -827,7 +889,7 @@ function renderRecorrenteRow(r, pago, key, refDate) {
   const parcelaLabel = parcelaInfo ? ` · parcela ${parcelaInfo.numero}/${parcelaInfo.total}` : '';
   const urgenciaClass = status.urgency ? ` row-urgencia-${status.urgency}` : '';
   return `
-      <div class="recorrente-row${urgenciaClass}">
+      <div class="recorrente-row${urgenciaClass}" data-selecao-key="recorrente:${r.id}">
         ${categoryIconBadge(cat)}
         <div class="desc">${escapeHtml(r.descricao)} <span style="color:var(--text-muted)">— dia ${r.dia}${pessoa ? ' · ' + escapeHtml(pessoa.nome) : ''}${parcelaLabel}</span></div>
         <div class="valor ${r.tipo === 'despesa' ? 'amount-despesa' : 'amount-receita'}">${formatCurrency(r.valor)}</div>
@@ -910,6 +972,8 @@ function desfazerPagamento(rec, key) {
 }
 
 function handleRecorrenteActionClick(e) {
+  const rowSel = e.target.closest('[data-selecao-key]');
+  if (rowSel && handleSelecaoClick(e, rowSel.dataset.selecaoKey)) return;
   const btn = e.target.closest('button[data-action]');
   if (!btn) return;
   const rec = data.recurring.find((r) => r.id === btn.dataset.id);
@@ -978,7 +1042,7 @@ function renderTransacoes() {
           })();
       const pessoa = getPessoa(t.pessoaId);
       const pessoaCell = pessoa ? `${pessoaAvatarBadge(pessoa)}${escapeHtml(pessoa.nome)}` : '—';
-      return `<tr data-id="${t.id}">
+      return `<tr data-id="${t.id}" data-selecao-key="transacao:${t.id}">
       <td>${formatDateBR(t.data)}</td>
       <td>${escapeHtml(t.descricao)}${t.rascunho ? ' <span class="balanco-badge">Ajustar</span>' : ''}</td>
       <td>${categoriaCell}</td>
@@ -1014,6 +1078,8 @@ function duplicateTransacao(id) {
 }
 
 document.getElementById('transacoes-tbody').addEventListener('click', (e) => {
+  const trSel = e.target.closest('tr[data-selecao-key]');
+  if (trSel && handleSelecaoClick(e, trSel.dataset.selecaoKey)) return;
   const delIcon = e.target.closest('[data-role="delete"]');
   if (delIcon) {
     deleteTransacao(delIcon.dataset.id);
@@ -1142,7 +1208,7 @@ function renderRecorrentes() {
     .map((r) => {
       const cat = getCategoria(r.categoriaId);
       const pessoa = getPessoa(r.pessoaId);
-      return `<tr data-id="${r.id}">
+      return `<tr data-id="${r.id}" data-selecao-key="recorrente:${r.id}">
       <td>${escapeHtml(r.descricao)}</td>
       <td>${categoryIconBadge(cat)}${cat ? escapeHtml(cat.nome) : '—'}</td>
       <td>${pessoa ? `${pessoaAvatarBadge(pessoa)}${escapeHtml(pessoa.nome)}` : '—'}</td>
@@ -1157,6 +1223,8 @@ function renderRecorrentes() {
 }
 
 document.getElementById('recorrentes-tbody').addEventListener('click', (e) => {
+  const trSel = e.target.closest('tr[data-selecao-key]');
+  if (trSel && handleSelecaoClick(e, trSel.dataset.selecaoKey)) return;
   const delIcon = e.target.closest('[data-role="delete"]');
   if (delIcon) {
     deleteRecorrente(delIcon.dataset.id);
