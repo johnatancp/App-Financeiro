@@ -337,14 +337,19 @@ function categoryIcon(cat) {
   const key = DEFAULT_ICON_BY_NAME[normalizeName(cat.nome)];
   return ICON_LIBRARY[key] || GENERIC_ICON;
 }
-function badgeCorStyle(cor, cor2) {
-  if (cor2) return `background:linear-gradient(135deg, ${cor}, ${cor2});color:#fff`;
-  return `background:${cor}22;color:${cor}`;
+function applyIconGradient(svgStr, cor, cor2, gradId) {
+  const comDefs = svgStr.replace(
+    /^<svg([^>]*)>/,
+    `<svg$1><defs><linearGradient id="${gradId}" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${cor}"/><stop offset="100%" stop-color="${cor2}"/></linearGradient></defs>`
+  );
+  return comDefs.replace(/currentColor/g, `url(#${gradId})`);
 }
 function categoryIconBadge(cat, size) {
   const cls = size === 'lg' ? 'cat-icon-badge lg' : 'cat-icon-badge';
   if (!cat) return `<span class="${cls}" style="background:#8888881f;color:#888">${GENERIC_ICON}</span>`;
-  return `<span class="${cls}" style="${badgeCorStyle(cat.cor, cat.cor2)}">${categoryIcon(cat)}</span>`;
+  let icon = categoryIcon(cat);
+  if (cat.cor2) icon = applyIconGradient(icon, cat.cor, cat.cor2, `grad-${cat.id}`);
+  return `<span class="${cls}" style="background:${cat.cor}22;color:${cat.cor}">${icon}</span>`;
 }
 
 // ---------- Avatar de pessoa ----------
@@ -1350,19 +1355,25 @@ let selectedIconKey = GENERIC_ICON_KEY;
 
 function renderIconGrid() {
   const cor = document.getElementById('c-cor').value;
+  const usaGradiente = document.getElementById('c-gradiente-check').checked;
+  const cor2 = document.getElementById('c-cor2').value;
   const grid = document.getElementById('c-icone-grid');
   grid.innerHTML = Object.keys(ICON_LIBRARY)
     .map((key) => {
       const selected = key === selectedIconKey ? ' selected' : '';
       const label = ICON_LABELS[key] || key;
-      return `<button type="button" class="icon-grid-btn${selected}" data-icon="${key}" title="${label}" style="color:${cor}">${ICON_LIBRARY[key]}</button>`;
+      const icon = usaGradiente ? applyIconGradient(ICON_LIBRARY[key], cor, cor2, `grad-preview-${key}`) : ICON_LIBRARY[key];
+      const style = usaGradiente ? '' : ` style="color:${cor}"`;
+      return `<button type="button" class="icon-grid-btn${selected}" data-icon="${key}" title="${label}"${style}>${icon}</button>`;
     })
     .join('');
 }
 
 document.getElementById('c-cor').addEventListener('input', renderIconGrid);
+document.getElementById('c-cor2').addEventListener('input', renderIconGrid);
 document.getElementById('c-gradiente-check').addEventListener('change', (e) => {
   document.getElementById('c-cor2-label').classList.toggle('hidden', !e.target.checked);
+  renderIconGrid();
 });
 document.getElementById('c-icone-grid').addEventListener('click', (e) => {
   const btn = e.target.closest('.icon-grid-btn');
