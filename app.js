@@ -296,6 +296,8 @@ const ICON_LIBRARY = {
   academia: `<svg ${ICON_ATTRS}><path d="M4 9v6"/><path d="M2.5 10.5v3"/><path d="M20 9v6"/><path d="M21.5 10.5v3"/><path d="M7 12h10"/><path d="M7 9v6"/><path d="M17 9v6"/></svg>`,
   moto: `<svg ${ICON_ATTRS}><circle cx="5.5" cy="17.5" r="2.7"/><circle cx="18" cy="17.5" r="2.7"/><path d="M8 17.5h7l2.5-4.5-2-3.5h-3.5"/><path d="M9.5 17.5l1.8-5.5h3"/><path d="M13.5 8.5h3"/></svg>`,
   compasso: `<svg ${ICON_ATTRS}><circle cx="12" cy="5" r="1.4" fill="currentColor" stroke="none"/><path d="M12 6.5 7.5 19"/><path d="M12 6.5 16.5 19"/><path d="M9.7 13h1.8"/></svg>`,
+  design: `<svg ${ICON_ATTRS}><path d="M12 3l7 5-3 11H8L5 8l7-5Z"/><path d="M12 3v18"/><circle cx="12" cy="19" r="1.3" fill="currentColor" stroke="none"/></svg>`,
+  pao: `<svg ${ICON_ATTRS}><path d="M4 13c0-3.5 3.5-7 8-7s8 3.5 8 7-3.5 6-8 6-8-2.5-8-6Z"/><path d="M8.5 8.5l1.5 2.5M12 7.5l1.5 3M15.5 9l1.3 2.3"/></svg>`,
 };
 const ICON_LABELS = {
   casa: 'Casa', cesta: 'Mercado', carro: 'Carro', coracao: 'Saúde', controle: 'Jogos',
@@ -303,7 +305,7 @@ const ICON_LABELS = {
   aviao: 'Viagem', mala: 'Trabalho', presente: 'Presente', pata: 'Pet', celular: 'Celular',
   camiseta: 'Roupas', grafico: 'Investimentos', escudo: 'Seguro', cartao: 'Cartão', wifi: 'Internet',
   ferramenta: 'Manutenção', pessoa: 'Família', documento: 'Documentos', xicara: 'Café', combustivel: 'Combustível',
-  academia: 'Academia', moto: 'Moto/Entrega', compasso: 'Arquitetura',
+  academia: 'Academia', moto: 'Moto/Entrega', compasso: 'Arquitetura', design: 'Design', pao: 'Padaria',
 };
 const DEFAULT_ICON_BY_NAME = {
   moradia: 'casa', alimentacao: 'cesta', transporte: 'carro', saude: 'coracao',
@@ -335,10 +337,14 @@ function categoryIcon(cat) {
   const key = DEFAULT_ICON_BY_NAME[normalizeName(cat.nome)];
   return ICON_LIBRARY[key] || GENERIC_ICON;
 }
+function badgeCorStyle(cor, cor2) {
+  if (cor2) return `background:linear-gradient(135deg, ${cor}, ${cor2});color:#fff`;
+  return `background:${cor}22;color:${cor}`;
+}
 function categoryIconBadge(cat, size) {
   const cls = size === 'lg' ? 'cat-icon-badge lg' : 'cat-icon-badge';
   if (!cat) return `<span class="${cls}" style="background:#8888881f;color:#888">${GENERIC_ICON}</span>`;
-  return `<span class="${cls}" style="background:${cat.cor}22;color:${cat.cor}">${categoryIcon(cat)}</span>`;
+  return `<span class="${cls}" style="${badgeCorStyle(cat.cor, cat.cor2)}">${categoryIcon(cat)}</span>`;
 }
 
 // ---------- Avatar de pessoa ----------
@@ -1355,6 +1361,9 @@ function renderIconGrid() {
 }
 
 document.getElementById('c-cor').addEventListener('input', renderIconGrid);
+document.getElementById('c-gradiente-check').addEventListener('change', (e) => {
+  document.getElementById('c-cor2-label').classList.toggle('hidden', !e.target.checked);
+});
 document.getElementById('c-icone-grid').addEventListener('click', (e) => {
   const btn = e.target.closest('.icon-grid-btn');
   if (!btn) return;
@@ -1369,11 +1378,19 @@ function openCategoriaModal(id) {
   document.getElementById('btn-delete-categoria').classList.toggle('hidden', !id);
   document.getElementById('modal-categoria-title').textContent = id ? 'Editar categoria' : 'Nova categoria';
 
+  document.getElementById('c-gradiente-check').checked = false;
+  document.getElementById('c-cor2-label').classList.add('hidden');
+
   if (id) {
     const c = data.categories.find((x) => x.id === id);
     document.getElementById('c-nome').value = c.nome;
     document.getElementById('c-cor').value = c.cor;
     selectedIconKey = (c.icone && ICON_LIBRARY[c.icone] ? c.icone : null) || DEFAULT_ICON_BY_NAME[normalizeName(c.nome)] || GENERIC_ICON_KEY;
+    if (c.cor2) {
+      document.getElementById('c-gradiente-check').checked = true;
+      document.getElementById('c-cor2-label').classList.remove('hidden');
+      document.getElementById('c-cor2').value = c.cor2;
+    }
   } else {
     document.getElementById('c-cor').value = '#d4a95e';
     selectedIconKey = GENERIC_ICON_KEY;
@@ -1387,12 +1404,18 @@ document.getElementById('form-categoria').addEventListener('submit', (e) => {
   const id = document.getElementById('c-id').value;
   const nome = document.getElementById('c-nome').value.trim();
   const cor = document.getElementById('c-cor').value;
+  const usaGradiente = document.getElementById('c-gradiente-check').checked;
+  const cor2 = usaGradiente ? document.getElementById('c-cor2').value : undefined;
 
   if (id) {
     const c = data.categories.find((x) => x.id === id);
     Object.assign(c, { nome, cor, icone: selectedIconKey });
+    if (cor2) c.cor2 = cor2;
+    else delete c.cor2;
   } else {
-    data.categories.push({ id: uid(), nome, cor, icone: selectedIconKey });
+    const novo = { id: uid(), nome, cor, icone: selectedIconKey };
+    if (cor2) novo.cor2 = cor2;
+    data.categories.push(novo);
   }
   scheduleSave();
   closeModals();

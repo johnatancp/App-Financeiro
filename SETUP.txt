@@ -143,6 +143,11 @@ ATUALIZANDO O SITE NO GITHUB (depois de qualquer mudança no app):
    - Arraste os arquivos de dentro da pasta "App Financeiro" (os que
      mudaram, ou todos — o GitHub só substitui os de mesmo nome).
    - Role pra baixo > "Commit changes". O link continua o mesmo.
+   - IMPORTANTE: o GitHub Pages pode levar 1-2 minutos pra atualizar
+     de verdade (ele usa uma CDN por trás), e o navegador também
+     guarda os arquivos antigos em cache. Se testar e parecer que
+     "não mudou nada", espera um minutinho e testa numa aba anônima
+     (Ctrl+Shift+N) ou com Ctrl+Shift+R antes de achar que tem bug.
 
 
 OBSERVAÇÕES
