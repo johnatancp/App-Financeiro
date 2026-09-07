@@ -55,6 +55,7 @@
     </div>
     <button class="nav-item active" data-view="dashboard">Painel</button>
     <button class="nav-item" data-view="transacoes">Transações</button>
+    <button class="nav-item" data-view="relatorios">Relatórios</button>
     <button class="nav-item" data-view="recorrentes">Contas fixas</button>
     <button class="nav-item" data-view="categorias">Categorias</button>
     <button class="nav-item" data-view="pessoas">Pessoas</button>
@@ -193,6 +194,90 @@
           <tbody id="transacoes-tbody"></tbody>
         </table>
         <div id="transacoes-empty" class="empty-state hidden">Nenhuma transação neste mês.</div>
+      </div>
+    </section>
+
+    <section id="view-relatorios" class="view">
+      <header class="view-header">
+        <h1>Relatórios</h1>
+      </header>
+
+      <div class="card">
+        <div class="relatorio-filtros">
+          <label>Período
+            <select id="rel-periodo">
+              <option value="este-mes">Este mês</option>
+              <option value="mes-passado">Mês passado</option>
+              <option value="3-meses">Últimos 3 meses</option>
+              <option value="6-meses">Últimos 6 meses</option>
+              <option value="este-ano">Este ano</option>
+              <option value="tudo">Tudo</option>
+              <option value="custom">Personalizado</option>
+            </select>
+          </label>
+          <label id="rel-data-inicio-label" class="hidden">De
+            <input type="date" id="rel-data-inicio">
+          </label>
+          <label id="rel-data-fim-label" class="hidden">Até
+            <input type="date" id="rel-data-fim">
+          </label>
+          <label>Pessoa
+            <select id="rel-pessoa"></select>
+          </label>
+          <label>Categoria
+            <select id="rel-categoria"></select>
+          </label>
+          <label>Tipo
+            <select id="rel-tipo">
+              <option value="todos">Todos</option>
+              <option value="despesa">Despesa</option>
+              <option value="receita">Receita</option>
+              <option value="balanco">Balanço</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <div class="cards-row stats-row-3">
+        <div class="card stat-card">
+          <div class="stat-label">Receitas no período</div>
+          <div id="rel-stat-receitas" class="stat-value positive">R$ 0,00</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-label">Despesas no período</div>
+          <div id="rel-stat-despesas" class="stat-value negative">R$ 0,00</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-label">Saldo do período</div>
+          <div id="rel-stat-saldo" class="stat-value">R$ 0,00</div>
+        </div>
+      </div>
+
+      <div class="cards-row two-col">
+        <div class="card">
+          <h2>Despesas por categoria</h2>
+          <div id="rel-chart-categorias" class="chart-wrap"></div>
+        </div>
+        <div class="card">
+          <h2>Evolução por mês</h2>
+          <div id="rel-chart-meses" class="chart-wrap"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th class="sortable" data-field="data">Data <span class="sort-arrow"></span></th>
+              <th class="sortable" data-field="descricao">Descrição <span class="sort-arrow"></span></th>
+              <th class="sortable" data-field="categoria">Categoria <span class="sort-arrow"></span></th>
+              <th class="sortable" data-field="pessoa">Pessoa <span class="sort-arrow"></span></th>
+              <th class="right sortable" data-field="valor">Valor <span class="sort-arrow"></span></th>
+            </tr>
+          </thead>
+          <tbody id="rel-tbody"></tbody>
+        </table>
+        <div id="rel-empty" class="empty-state hidden">Nenhuma transação nesse filtro.</div>
       </div>
     </section>
 
@@ -469,6 +554,16 @@
         </div>
       </div>
     </form>
+  </div>
+
+  <div id="modal-categoria-detalhe" class="modal hidden">
+    <h2 id="modal-categoria-detalhe-title">Categoria</h2>
+    <div id="categoria-detalhe-list" class="detalhe-list"></div>
+    <div class="modal-actions">
+      <div class="modal-actions-right">
+        <button type="button" class="btn btn-ghost modal-cancel">Fechar</button>
+      </div>
+    </div>
   </div>
 
   <div id="modal-notificacoes" class="modal hidden">

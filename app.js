@@ -465,7 +465,7 @@ const SORT_DEFAULT_DIR = {
 function compareTransacoes(a, b, field) {
   switch (field) {
     case 'data':
-      return a.data.localeCompare(b.data);
+      return a.data.localeCompare(b.data) || (a.criadoEm || 0) - (b.criadoEm || 0);
     case 'descricao':
       return a.descricao.localeCompare(b.descricao, 'pt-BR');
     case 'categoria':
@@ -655,9 +655,11 @@ function renderAll() {
   document.getElementById('month-label-2').textContent = label;
   populateCategorySelects();
   populatePessoaSelects();
+  populateRelatorioSelects();
   renderPessoaFilterControls();
   renderDashboard();
   renderTransacoes();
+  renderRelatorio();
   renderRecorrentes();
   renderCategorias();
   renderPessoas();
@@ -768,7 +770,16 @@ document.getElementById('despesas-view-select').addEventListener('change', (e) =
 
 document.getElementById('chart-categorias').addEventListener('click', (e) => {
   const rowSel = e.target.closest('[data-selecao-key]');
-  if (rowSel) handleSelecaoClick(e, rowSel.dataset.selecaoKey);
+  if (rowSel) {
+    handleSelecaoClick(e, rowSel.dataset.selecaoKey);
+    return;
+  }
+  const barRow = e.target.closest('.bar-row[data-cat-id]');
+  if (barRow) {
+    const key = monthKey(currentDate);
+    const despesas = data.transactions.filter((t) => pessoaMatches(t) && t.data.slice(0, 7) === key && t.tipo === 'despesa');
+    abrirDetalheCategoria(barRow.dataset.catId, despesas);
+  }
 });
 
 function renderDespesasCard(key) {
@@ -776,7 +787,7 @@ function renderDespesasCard(key) {
   if (despesasViewMode === 'recentes') {
     renderDespesasRecentesList();
   } else {
-    renderPieCategorias(key);
+    renderBarCategorias(key);
   }
 }
 
@@ -784,7 +795,7 @@ function renderDespesasRecentesList() {
   const container = document.getElementById('chart-categorias');
   const txs = data.transactions
     .filter((t) => pessoaMatches(t) && t.tipo === 'despesa')
-    .sort((a, b) => b.data.localeCompare(a.data))
+    .sort((a, b) => b.data.localeCompare(a.data) || (b.criadoEm || 0) - (a.criadoEm || 0))
     .slice(0, 10);
   if (txs.length === 0) {
     container.innerHTML = '<div class="empty-state">Nenhuma despesa lançada ainda.</div>';
@@ -806,49 +817,47 @@ function renderDespesasRecentesList() {
     .join('');
 }
 
-function renderPieCategorias(key) {
+function categoriaBarsHtml(despesas) {
   const totals = {};
-  data.transactions
-    .filter((t) => pessoaMatches(t) && t.data.slice(0, 7) === key && t.tipo === 'despesa')
-    .forEach((t) => {
-      totals[t.categoriaId] = (totals[t.categoriaId] || 0) + t.valor;
-    });
+  despesas.forEach((t) => {
+    const key = t.categoriaId || '';
+    totals[key] = (totals[key] || 0) + t.valor;
+  });
   const rows = Object.entries(totals)
-    .map(([catId, val]) => ({ cat: getCategoria(catId), val }))
+    .map(([catId, val]) => ({ catId, cat: getCategoria(catId), val }))
     .sort((a, b) => b.val - a.val);
-  const container = document.getElementById('chart-categorias');
-  if (rows.length === 0) {
-    container.innerHTML = '<div class="empty-state">Sem despesas neste mês.</div>';
-    return;
-  }
-  const total = rows.reduce((a, r) => a + r.val, 0);
-  const size = 160;
-  const radius = 62;
-  const stroke = 24;
-  const cx = size / 2;
-  const cy = size / 2;
-  const circumference = 2 * Math.PI * radius;
-  let acc = 0;
-  const circles = rows
+  if (rows.length === 0) return '';
+  const max = Math.max(...rows.map((r) => r.val));
+  return rows
     .map((r) => {
       const color = r.cat ? r.cat.cor : '#888888';
-      const dash = (r.val / total) * circumference;
-      const circle = `<circle cx="${cx}" cy="${cy}" r="${radius}" fill="none" stroke="${color}" stroke-width="${stroke}" stroke-dasharray="${dash} ${circumference - dash}" stroke-dashoffset="${-acc}" transform="rotate(-90 ${cx} ${cy})"/>`;
-      acc += dash;
-      return circle;
-    })
-    .join('');
-  const svg = `<svg viewBox="0 0 ${size} ${size}" class="pie-svg">${circles}</svg>`;
-  const legend = rows
-    .map((r) => {
-      const pct = Math.round((r.val / total) * 100);
-      return `<div class="legend-item">
-      <div class="legend-left">${categoryIconBadge(r.cat)}${r.cat ? escapeHtml(r.cat.nome) : 'Sem categoria'}</div>
-      <div class="legend-value">${formatCurrency(r.val)} · ${pct}%</div>
+      return `<div class="bar-row" data-cat-id="${r.catId}">
+      ${categoryIconBadge(r.cat)}
+      <div class="bar-row-info">
+        <div class="bar-row-label">${r.cat ? escapeHtml(r.cat.nome) : 'Sem categoria'}</div>
+        <div class="bar-track"><div class="bar-fill-despesa" style="width:${(r.val / max) * 100}%;background:${color}"></div></div>
+      </div>
+      <div class="bar-value">${formatCurrency(r.val)}</div>
     </div>`;
     })
     .join('');
-  container.innerHTML = `<div class="pie-layout"><div class="pie-svg-wrap">${svg}</div><div class="pie-legend">${legend}</div></div>`;
+}
+
+function renderBarCategorias(key) {
+  const container = document.getElementById('chart-categorias');
+  const despesas = data.transactions.filter((t) => pessoaMatches(t) && t.data.slice(0, 7) === key && t.tipo === 'despesa');
+  container.innerHTML = categoriaBarsHtml(despesas) || '<div class="empty-state">Sem despesas neste mês.</div>';
+}
+
+function abrirDetalheCategoria(catId, despesas) {
+  const cat = getCategoria(catId);
+  document.getElementById('modal-categoria-detalhe-title').textContent = cat ? cat.nome : 'Sem categoria';
+  const txs = despesas.filter((t) => (t.categoriaId || '') === catId).sort((a, b) => b.data.localeCompare(a.data));
+  const container = document.getElementById('categoria-detalhe-list');
+  container.innerHTML = txs.length
+    ? txs.map((t) => `<div class="detalhe-row"><span>${escapeHtml(t.descricao)}</span><span class="detalhe-valor">${formatCurrency(t.valor)}</span></div>`).join('')
+    : '<div class="empty-state">Nenhuma despesa.</div>';
+  openModal(document.getElementById('modal-categoria-detalhe'));
 }
 
 function renderChartMeses() {
@@ -1010,6 +1019,7 @@ document.getElementById('form-confirmar-pagamento').addEventListener('submit', (
     categoriaId: rec.categoriaId,
     pessoaId: rec.pessoaId,
     recorrenteId: rec.id,
+    criadoEm: Date.now(),
   });
   rec.pagoMeses = rec.pagoMeses || [];
   rec.pagoMeses.push(key);
@@ -1074,6 +1084,7 @@ function duplicateTransacao(id) {
   const hoje = new Date();
   const novo = { ...t, id: uid() };
   novo.data = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+  novo.criadoEm = Date.now();
   data.transactions.push(novo);
   currentDate = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
   scheduleSave();
@@ -1120,6 +1131,7 @@ document.getElementById('form-rapido').addEventListener('submit', (e) => {
     categoriaId: null,
     pessoaId: null,
     rascunho: true,
+    criadoEm: Date.now(),
   });
   currentDate = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
   scheduleSave();
@@ -1183,7 +1195,7 @@ document.getElementById('form-transacao').addEventListener('submit', (e) => {
     Object.assign(t, { tipo, operacao, descricao, valor, data: dataStr, categoriaId, pessoaId });
     delete t.rascunho;
   } else {
-    data.transactions.push({ id: uid(), tipo, operacao, descricao, valor, data: dataStr, categoriaId, pessoaId });
+    data.transactions.push({ id: uid(), tipo, operacao, descricao, valor, data: dataStr, categoriaId, pessoaId, criadoEm: Date.now() });
   }
   scheduleSave();
   closeModals();
@@ -1560,6 +1572,201 @@ function deletePessoa(id) {
 document.getElementById('btn-delete-pessoa').addEventListener('click', () => {
   const id = document.getElementById('p-id').value;
   if (deletePessoa(id)) closeModals();
+});
+
+// ---------- Relatórios ----------
+function populateRelatorioSelects() {
+  const pessoaSel = document.getElementById('rel-pessoa');
+  const prevPessoa = pessoaSel.value || 'todos';
+  pessoaSel.innerHTML = '<option value="todos">Todos</option>' + data.pessoas.map((p) => `<option value="${p.id}">${escapeHtml(p.nome)}</option>`).join('');
+  pessoaSel.value = prevPessoa;
+
+  const catSel = document.getElementById('rel-categoria');
+  const prevCat = catSel.value || 'todas';
+  catSel.innerHTML = '<option value="todas">Todas</option>' + data.categories.map((c) => `<option value="${c.id}">${escapeHtml(c.nome)}</option>`).join('');
+  catSel.value = prevCat;
+}
+
+function ensureRelatorioDateDefaults() {
+  const hoje = new Date();
+  const ini = document.getElementById('rel-data-inicio');
+  const fim = document.getElementById('rel-data-fim');
+  if (!ini.value) ini.value = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-01`;
+  if (!fim.value) {
+    const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
+    fim.value = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(ultimoDia).padStart(2, '0')}`;
+  }
+}
+
+function computeRelatorioRange() {
+  const periodo = document.getElementById('rel-periodo').value;
+  const hoje = new Date();
+  const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  let inicio;
+  let fim;
+  switch (periodo) {
+    case 'este-mes':
+      inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+      fim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+      break;
+    case 'mes-passado':
+      inicio = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+      fim = new Date(hoje.getFullYear(), hoje.getMonth(), 0);
+      break;
+    case '3-meses':
+      inicio = new Date(hoje.getFullYear(), hoje.getMonth() - 2, 1);
+      fim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+      break;
+    case '6-meses':
+      inicio = new Date(hoje.getFullYear(), hoje.getMonth() - 5, 1);
+      fim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+      break;
+    case 'este-ano':
+      inicio = new Date(hoje.getFullYear(), 0, 1);
+      fim = new Date(hoje.getFullYear(), 11, 31);
+      break;
+    case 'tudo':
+      return { inicio: null, fim: null };
+    case 'custom':
+    default:
+      return { inicio: document.getElementById('rel-data-inicio').value || null, fim: document.getElementById('rel-data-fim').value || null };
+  }
+  return { inicio: fmt(inicio), fim: fmt(fim) };
+}
+
+function relatorioTransacoesFiltradas() {
+  const { inicio, fim } = computeRelatorioRange();
+  const pessoaId = document.getElementById('rel-pessoa').value;
+  const categoriaId = document.getElementById('rel-categoria').value;
+  const tipo = document.getElementById('rel-tipo').value;
+  return data.transactions.filter((t) => {
+    if (inicio && t.data < inicio) return false;
+    if (fim && t.data > fim) return false;
+    if (pessoaId !== 'todos' && t.pessoaId !== pessoaId) return false;
+    if (categoriaId !== 'todas' && (t.categoriaId || '') !== categoriaId) return false;
+    if (tipo !== 'todos' && t.tipo !== tipo) return false;
+    return true;
+  });
+}
+
+let relatorioSort = { field: 'data', dir: 'desc' };
+
+document.querySelector('#view-relatorios thead').addEventListener('click', (e) => {
+  const th = e.target.closest('th[data-field]');
+  if (!th) return;
+  const field = th.dataset.field;
+  if (relatorioSort.field === field) {
+    relatorioSort.dir = relatorioSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    relatorioSort = { field, dir: SORT_DEFAULT_DIR[field] || 'asc' };
+  }
+  renderRelatorioTabela(relatorioTransacoesFiltradas());
+});
+
+function renderRelatorioTabela(txs) {
+  updateSortArrows('#view-relatorios thead', relatorioSort);
+  const sorted = applySort(txs, compareTransacoes, relatorioSort.field, relatorioSort.dir);
+  const tbody = document.getElementById('rel-tbody');
+  const empty = document.getElementById('rel-empty');
+  if (sorted.length === 0) {
+    tbody.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+  tbody.innerHTML = sorted
+    .map((t) => {
+      const isBalanco = t.tipo === 'balanco';
+      const sinalNegativo = t.tipo === 'despesa' || (isBalanco && t.operacao === 'subtrai');
+      const categoriaCell = isBalanco
+        ? '<span class="balanco-badge">Balanço</span>'
+        : (() => {
+            const cat = getCategoria(t.categoriaId);
+            return `${categoryIconBadge(cat)}${cat ? escapeHtml(cat.nome) : '—'}`;
+          })();
+      const pessoa = getPessoa(t.pessoaId);
+      const pessoaCell = pessoa ? `${pessoaAvatarBadge(pessoa)}${escapeHtml(pessoa.nome)}` : '—';
+      return `<tr>
+      <td>${formatDateBR(t.data)}</td>
+      <td>${escapeHtml(t.descricao)}</td>
+      <td>${categoriaCell}</td>
+      <td>${pessoaCell}</td>
+      <td class="right ${sinalNegativo ? 'amount-despesa' : 'amount-receita'}">${sinalNegativo ? '-' : '+'} ${formatCurrency(t.valor)}</td>
+    </tr>`;
+    })
+    .join('');
+}
+
+function renderRelatorioMeses(txs) {
+  const container = document.getElementById('rel-chart-meses');
+  if (txs.length === 0) {
+    container.innerHTML = '<div class="empty-state">Sem dados nesse filtro.</div>';
+    return;
+  }
+  const monthKeys = [...new Set(txs.map((t) => t.data.slice(0, 7)))].sort();
+  const totals = monthKeys.map((key) => {
+    const [y, m] = key.split('-').map(Number);
+    const d = new Date(y, m - 1, 1);
+    const monthTxs = txs.filter((t) => t.data.slice(0, 7) === key);
+    return {
+      d,
+      receitas: monthTxs.filter((t) => t.tipo === 'receita').reduce((a, t) => a + t.valor, 0),
+      despesas: monthTxs.filter((t) => t.tipo === 'despesa').reduce((a, t) => a + t.valor, 0),
+    };
+  });
+  const max = Math.max(1, ...totals.flatMap((t) => [t.receitas, t.despesas]));
+  container.innerHTML =
+    '<div class="months-chart">' +
+    totals
+      .map(
+        (t) => `
+      <div class="month-col">
+        <div class="month-bars">
+          <div class="mbar mbar-receita" style="height:${(t.receitas / max) * 100}%" title="Receitas: ${formatCurrency(t.receitas)}"></div>
+          <div class="mbar mbar-despesa" style="height:${(t.despesas / max) * 100}%" title="Despesas: ${formatCurrency(t.despesas)}"></div>
+        </div>
+        <div class="month-col-label">${capitalize(t.d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })).replace('.', '')}</div>
+      </div>`
+      )
+      .join('') +
+    '</div>';
+}
+
+function renderRelatorio() {
+  ensureRelatorioDateDefaults();
+  const txs = relatorioTransacoesFiltradas();
+  const receitas = txs.filter((t) => t.tipo === 'receita').reduce((a, t) => a + t.valor, 0);
+  const despesas = txs.filter((t) => t.tipo === 'despesa').reduce((a, t) => a + t.valor, 0);
+  const saldo = txs.reduce((acc, t) => acc + transactionSign(t) * t.valor, 0);
+  document.getElementById('rel-stat-receitas').textContent = formatCurrency(receitas);
+  document.getElementById('rel-stat-despesas').textContent = formatCurrency(despesas);
+  const saldoEl = document.getElementById('rel-stat-saldo');
+  saldoEl.textContent = formatCurrency(saldo);
+  saldoEl.classList.toggle('positive', saldo >= 0);
+  saldoEl.classList.toggle('negative', saldo < 0);
+
+  const despesasList = txs.filter((t) => t.tipo === 'despesa');
+  document.getElementById('rel-chart-categorias').innerHTML =
+    categoriaBarsHtml(despesasList) || '<div class="empty-state">Sem despesas nesse filtro.</div>';
+
+  renderRelatorioMeses(txs);
+  renderRelatorioTabela(txs);
+}
+
+document.getElementById('rel-periodo').addEventListener('change', (e) => {
+  const isCustom = e.target.value === 'custom';
+  document.getElementById('rel-data-inicio-label').classList.toggle('hidden', !isCustom);
+  document.getElementById('rel-data-fim-label').classList.toggle('hidden', !isCustom);
+  renderRelatorio();
+});
+['rel-data-inicio', 'rel-data-fim', 'rel-pessoa', 'rel-categoria', 'rel-tipo'].forEach((id) => {
+  document.getElementById(id).addEventListener('change', renderRelatorio);
+});
+document.getElementById('rel-chart-categorias').addEventListener('click', (e) => {
+  const barRow = e.target.closest('.bar-row[data-cat-id]');
+  if (!barRow) return;
+  const despesas = relatorioTransacoesFiltradas().filter((t) => t.tipo === 'despesa');
+  abrirDetalheCategoria(barRow.dataset.catId, despesas);
 });
 
 // ---------- Modais genéricos ----------

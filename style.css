@@ -240,6 +240,32 @@ html, body {
 .cards-row.stats-row {
   grid-template-columns: 2fr 1fr 1fr;
 }
+.cards-row.stats-row-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+.relatorio-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+}
+.relatorio-filtros label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.relatorio-filtros select,
+.relatorio-filtros input {
+  background: var(--bg-elevated);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm);
+  padding: 9px 10px;
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+}
 .card {
   background: var(--card);
   border: 1px solid var(--card-border);
@@ -425,11 +451,6 @@ html, body {
 /* Chart */
 .chart-wrap { min-height: 220px; }
 
-.pie-layout { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
-.pie-svg-wrap { flex-shrink: 0; }
-.pie-svg { width: 160px; height: 160px; }
-.pie-legend { flex: 1; min-width: 160px; }
-
 .recent-expense-row {
   display: flex;
   align-items: center;
@@ -474,35 +495,43 @@ tr.selecionado td {
   transform: translateY(-3px);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
 }
-.legend-item {
+.bar-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  font-size: 13px;
-  padding: 6px 0;
-}
-.legend-left { display: flex; align-items: center; color: var(--text); }
-.legend-value { color: var(--text-muted); font-variant-numeric: tabular-nums; }
-
-.bar-row {
-  display: grid;
-  grid-template-columns: 150px 1fr 90px;
-  align-items: center;
   gap: 10px;
+  padding: 6px 4px;
+  border-radius: 8px;
+  cursor: pointer;
   font-size: 13px;
   color: var(--text);
-  margin-bottom: 10px;
+  margin-bottom: 4px;
 }
+.bar-row:hover { background: var(--bg-elevated); }
+.bar-row-info { flex: 1; min-width: 0; }
+.bar-row-label { margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bar-track {
   background: var(--bg-elevated);
   border-radius: 4px;
-  height: 20px;
+  height: 10px;
   display: flex;
   overflow: hidden;
 }
-.bar-fill-receita { background: var(--positive); height: 100%; }
-.bar-fill-despesa { background: var(--negative); height: 100%; }
-.bar-value { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-muted); }
+.bar-fill-receita { background: var(--positive); height: 100%; border-radius: 4px; }
+.bar-fill-despesa { background: var(--negative); height: 100%; border-radius: 4px; }
+.bar-value { font-variant-numeric: tabular-nums; color: var(--text-muted); white-space: nowrap; }
+
+.detalhe-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 2px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--card-border);
+}
+.detalhe-row:last-child { border-bottom: none; }
+.detalhe-row .detalhe-valor { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--negative); }
+.detalhe-list { max-height: 320px; overflow-y: auto; margin: 4px 0 4px; }
 
 .months-chart {
   display: flex;
@@ -819,6 +848,9 @@ tr.selecionado td {
   .header-actions { width: 100%; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
   .cards-row, .cards-row.two-col { grid-template-columns: 1fr 1fr; }
   .cards-row.stats-row { grid-template-columns: 1fr; }
+  .cards-row.stats-row-3 { grid-template-columns: 1fr; }
+  .relatorio-filtros { flex-direction: column; align-items: stretch; }
+  .relatorio-filtros select, .relatorio-filtros input { width: 100%; }
   .field-row { flex-direction: column; }
   .data-table { display: block; overflow-x: auto; white-space: nowrap; }
   .card { padding: 16px; }
