@@ -930,3 +930,38 @@ tr.selecionado td {
 @media (max-width: 480px) {
   .cards-row, .cards-row.two-col { grid-template-columns: 1fr; }
 }
+
+/* ---------- Exportação de relatório em PDF (via impressão) ---------- */
+.rel-print-header { display: none; }
+
+@media print {
+  :root {
+    --bg: #ffffff;
+    --bg-elevated: #f4f4f4;
+    --card: #ffffff;
+    --card-border: #d8d8d8;
+    --text: #1a1a1a;
+    --text-muted: #5a5a5a;
+    --accent: #a97c2f;
+    --accent-soft: #a97c2f22;
+    --positive: #1f9d6b;
+    --negative: #c23b53;
+  }
+  * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  body { background: #fff; }
+  .sidebar, .mobile-topbar, .sidebar-overlay, .fab-rapido, .modal-overlay, .no-print { display: none !important; }
+  .app { display: block; }
+  .content { padding: 0; }
+  .view { display: none !important; }
+  #view-relatorios { display: block !important; }
+  .card { border: 1px solid var(--card-border); box-shadow: none; page-break-inside: avoid; break-inside: avoid; }
+  .cards-row, .cards-row.two-col, .cards-row.stats-row-3 { grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .data-table { page-break-inside: auto; }
+  .data-table tr { page-break-inside: avoid; }
+  .rel-print-header {
+    display: block;
+    margin-bottom: 18px;
+  }
+  .rel-print-header h1 { margin: 0 0 4px; font-size: 22px; color: var(--text); }
+  .rel-print-header .rel-print-sub { font-size: 13px; color: var(--text-muted); }
+}

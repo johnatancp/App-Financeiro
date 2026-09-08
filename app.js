@@ -1128,7 +1128,6 @@ function openLancamentoRapido() {
   document.getElementById('q-desc').focus();
 }
 document.getElementById('btn-fab-rapido').addEventListener('click', openLancamentoRapido);
-document.getElementById('btn-rapido-desktop').addEventListener('click', openLancamentoRapido);
 
 document.getElementById('form-rapido').addEventListener('submit', (e) => {
   e.preventDefault();
@@ -2062,6 +2061,30 @@ document.getElementById('rel-chart-categorias').addEventListener('click', (e) =>
   if (!barRow) return;
   const despesas = relatorioTransacoesFiltradas().filter((t) => t.tipo === 'despesa');
   abrirDetalheCategoria(barRow.dataset.catId, despesas);
+});
+
+function selectedText(id) {
+  const el = document.getElementById(id);
+  return el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : '';
+}
+
+document.getElementById('btn-exportar-relatorio-pdf').addEventListener('click', () => {
+  const { inicio, fim } = computeRelatorioRange();
+  let periodoTexto;
+  if (!inicio && !fim) periodoTexto = 'Todo o período';
+  else periodoTexto = `${inicio ? formatDateBR(inicio) : 'início'} até ${fim ? formatDateBR(fim) : 'hoje'}`;
+  const filtros = [
+    `Pessoa: ${selectedText('rel-pessoa')}`,
+    `Categoria: ${selectedText('rel-categoria')}`,
+    `Tipo: ${selectedText('rel-tipo')}`,
+  ].join('  •  ');
+  document.getElementById('rel-print-header').innerHTML = `
+    <h1>Relatório financeiro</h1>
+    <div class="rel-print-sub">${periodoTexto}</div>
+    <div class="rel-print-sub">${filtros}</div>
+    <div class="rel-print-sub">Gerado em ${formatDateBR(new Date().toISOString().slice(0, 10))}</div>
+  `;
+  window.print();
 });
 
 // ---------- Modais genéricos ----------

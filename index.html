@@ -178,7 +178,6 @@
           </div>
           <button id="btn-revisao-pendente" class="btn btn-ghost hidden">Revisar pendências <span id="pendente-count-badge" class="nav-badge"></span></button>
           <button id="btn-importar-pdf" class="btn btn-secondary">📄 Importar extrato PDF</button>
-          <button id="btn-rapido-desktop" class="btn btn-secondary">⚡ Lançamento rápido</button>
           <button id="btn-add-transacao" class="btn btn-primary">+ Nova transação</button>
         </div>
       </header>
@@ -203,9 +202,13 @@
     <section id="view-relatorios" class="view">
       <header class="view-header">
         <h1>Relatórios</h1>
+        <div class="header-actions no-print">
+          <button id="btn-exportar-relatorio-pdf" class="btn btn-secondary">📄 Exportar PDF</button>
+        </div>
       </header>
+      <div id="rel-print-header" class="rel-print-header"></div>
 
-      <div class="card">
+      <div class="card no-print">
         <div class="relatorio-filtros">
           <label>Período
             <select id="rel-periodo">
