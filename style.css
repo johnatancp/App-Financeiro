@@ -675,6 +675,7 @@ tr.selecionado td {
   border-color: var(--accent);
 }
 .modal input[type=color] { padding: 4px; height: 40px; cursor: pointer; }
+.modal input[type=checkbox] { padding: 0; width: 16px; height: 16px; flex: none; accent-color: var(--accent); }
 .field-row { display: flex; gap: 12px; flex-wrap: wrap; }
 .modal-wide { max-width: 620px; }
 
@@ -715,7 +716,9 @@ tr.selecionado td {
   flex-direction: column;
   gap: 8px;
 }
-.pendente-row-top { display: flex; align-items: center; gap: 10px; }
+.pendente-row-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pdf-data { width: 132px; flex: none; }
+.pdf-valor { width: 100px; flex: none; }
 .pendente-data { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
 .pendente-desc {
   flex: 1;

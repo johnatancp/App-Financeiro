@@ -680,7 +680,7 @@ function populateCategorySelects() {
 
 function populatePessoaSelects() {
   const opts = data.pessoas.map((p) => `<option value="${p.id}">${escapeHtml(p.nome)}</option>`).join('');
-  ['t-pessoa', 'r-pessoa', 'q-pessoa'].forEach((id) => {
+  ['t-pessoa', 'r-pessoa', 'q-pessoa', 'pdf-pessoa'].forEach((id) => {
     const el = document.getElementById(id);
     const prev = el.value;
     el.innerHTML = opts;
@@ -1326,6 +1326,180 @@ document.getElementById('revisao-pendente-list').addEventListener('click', (e) =
     scheduleSave();
     renderAll();
   }
+});
+
+// ---------- Importar extrato em PDF ----------
+if (window.pdfjsLib) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
+let pdfImportRows = [];
+
+async function extrairLinhasPdf(file) {
+  const buffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+  const linhas = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const porLinha = new Map();
+    content.items.forEach((item) => {
+      const y = Math.round(item.transform[5]);
+      if (!porLinha.has(y)) porLinha.set(y, []);
+      porLinha.get(y).push(item);
+    });
+    [...porLinha.keys()]
+      .sort((a, b) => b - a)
+      .forEach((y) => {
+        const itens = porLinha.get(y).sort((a, b) => a.transform[4] - b.transform[4]);
+        linhas.push(itens.map((it) => it.str).join(' ').replace(/\s+/g, ' ').trim());
+      });
+  }
+  return linhas.filter((l) => l.length > 0);
+}
+
+function parseValorBR(str) {
+  return parseFloat(str.replace(/\./g, '').replace(',', '.'));
+}
+
+function parseLinhaExtrato(linha, anoReferencia) {
+  const dataMatch = linha.match(/(\d{2})\/(\d{2})(?:\/(\d{2,4}))?/);
+  if (!dataMatch) return null;
+  const valorMatches = [...linha.matchAll(/(-?)\s?(?:R\$\s?)?(\d{1,3}(?:\.\d{3})*,\d{2})/g)];
+  if (valorMatches.length === 0) return null;
+  const ultimoValor = valorMatches[valorMatches.length - 1];
+  const valor = parseValorBR(ultimoValor[2]);
+  if (!valor || valor <= 0) return null;
+
+  const dia = dataMatch[1];
+  const mes = dataMatch[2];
+  let ano = dataMatch[3];
+  if (!ano) ano = String(anoReferencia);
+  else if (ano.length === 2) ano = `20${ano}`;
+  const dataIso = `${ano}-${mes}-${dia}`;
+
+  let descricao = linha
+    .slice(dataMatch.index + dataMatch[0].length, ultimoValor.index)
+    .replace(/[|•·]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!descricao) descricao = 'Lançamento';
+
+  const textoLower = linha.toLowerCase();
+  const indicaReceita = ultimoValor[1] === '-' || /pagamento recebido|estorno|cr[eé]dito recebido|devolu[cç][aã]o|reembolso/.test(textoLower);
+
+  return { data: dataIso, descricao, valor, tipo: indicaReceita ? 'receita' : 'despesa', incluir: true };
+}
+
+function atualizarContadorImportar() {
+  const n = pdfImportRows.filter((r) => r.incluir).length;
+  document.getElementById('btn-pdf-confirmar').textContent = `Importar ${n} lançamento${n === 1 ? '' : 's'}`;
+}
+
+function renderPdfPreview() {
+  document.getElementById('pdf-step-upload').classList.add('hidden');
+  document.getElementById('pdf-step-preview').classList.remove('hidden');
+  const container = document.getElementById('pdf-preview-list');
+  const empty = document.getElementById('pdf-preview-empty');
+  const btnConfirmar = document.getElementById('btn-pdf-confirmar');
+  if (pdfImportRows.length === 0) {
+    container.innerHTML = '';
+    empty.classList.remove('hidden');
+    btnConfirmar.classList.add('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+  btnConfirmar.classList.remove('hidden');
+  atualizarContadorImportar();
+  container.innerHTML = pdfImportRows
+    .map((r, i) => `<div class="pendente-row" data-idx="${i}">
+      <div class="pendente-row-top">
+        <input type="checkbox" class="pdf-incluir" ${r.incluir ? 'checked' : ''} title="Incluir na importação">
+        <input type="date" class="pdf-data" value="${r.data}">
+        <input type="text" class="pendente-desc pdf-desc" value="${escapeHtml(r.descricao)}">
+        <input type="number" step="0.01" min="0.01" class="pdf-valor" value="${r.valor}">
+      </div>
+      <div class="pendente-row-bottom">
+        <label class="type-toggle"><input type="radio" name="pdf-tipo-${i}" value="despesa" class="pdf-tipo" ${r.tipo === 'despesa' ? 'checked' : ''}> <span>Despesa</span></label>
+        <label class="type-toggle"><input type="radio" name="pdf-tipo-${i}" value="receita" class="pdf-tipo" ${r.tipo === 'receita' ? 'checked' : ''}> <span>Receita</span></label>
+      </div>
+    </div>`)
+    .join('');
+}
+
+async function processarPdfImportado(file) {
+  const status = document.getElementById('pdf-status');
+  status.textContent = 'Lendo o PDF…';
+  status.classList.remove('hidden');
+  try {
+    const linhas = await extrairLinhasPdf(file);
+    const anoRef = new Date().getFullYear();
+    pdfImportRows = linhas.map((l) => parseLinhaExtrato(l, anoRef)).filter(Boolean);
+    status.classList.add('hidden');
+    renderPdfPreview();
+  } catch (err) {
+    console.error(err);
+    status.textContent = 'Não consegui ler esse PDF. Talvez seja uma imagem escaneada, ou o arquivo esteja corrompido — tente outro.';
+    status.classList.remove('hidden');
+  }
+}
+
+function abrirImportarPdf() {
+  pdfImportRows = [];
+  document.getElementById('pdf-file-input').value = '';
+  document.getElementById('pdf-status').classList.add('hidden');
+  document.getElementById('pdf-step-upload').classList.remove('hidden');
+  document.getElementById('pdf-step-preview').classList.add('hidden');
+  document.getElementById('btn-pdf-confirmar').classList.add('hidden');
+  openModal(document.getElementById('modal-importar-pdf'));
+}
+document.getElementById('btn-importar-pdf').addEventListener('click', abrirImportarPdf);
+document.getElementById('pdf-file-input').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (file) processarPdfImportado(file);
+});
+
+document.getElementById('pdf-preview-list').addEventListener('input', (e) => {
+  const row = e.target.closest('.pendente-row');
+  if (!row) return;
+  const i = Number(row.dataset.idx);
+  if (e.target.classList.contains('pdf-data')) pdfImportRows[i].data = e.target.value;
+  if (e.target.classList.contains('pdf-desc')) pdfImportRows[i].descricao = e.target.value;
+  if (e.target.classList.contains('pdf-valor')) pdfImportRows[i].valor = parseFloat(e.target.value) || 0;
+});
+document.getElementById('pdf-preview-list').addEventListener('change', (e) => {
+  const row = e.target.closest('.pendente-row');
+  if (!row) return;
+  const i = Number(row.dataset.idx);
+  if (e.target.classList.contains('pdf-incluir')) {
+    pdfImportRows[i].incluir = e.target.checked;
+    atualizarContadorImportar();
+  }
+  if (e.target.classList.contains('pdf-tipo')) pdfImportRows[i].tipo = e.target.value;
+});
+
+document.getElementById('btn-pdf-confirmar').addEventListener('click', () => {
+  const pessoaId = document.getElementById('pdf-pessoa').value;
+  const selecionadas = pdfImportRows.filter((r) => r.incluir && r.data && r.descricao && r.valor > 0);
+  if (selecionadas.length === 0) return;
+  let carimbo = Date.now();
+  selecionadas.forEach((r) => {
+    data.transactions.push({
+      id: uid(),
+      tipo: r.tipo,
+      descricao: r.descricao,
+      valor: r.valor,
+      data: r.data,
+      categoriaId: null,
+      pessoaId,
+      rascunho: true,
+      criadoEm: carimbo++,
+    });
+  });
+  scheduleSave();
+  closeModals();
+  renderAll();
+  alert(`${selecionadas.length} lançamento(s) importado(s) como pendência. Abra "Revisar pendências" pra categorizar.`);
 });
 
 // ---------- Contas fixas (recorrentes) ----------

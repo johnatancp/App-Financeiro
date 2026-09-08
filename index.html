@@ -177,7 +177,8 @@
             <button id="month-next-2" class="icon-btn">›</button>
           </div>
           <button id="btn-revisao-pendente" class="btn btn-ghost hidden">Revisar pendências <span id="pendente-count-badge" class="nav-badge"></span></button>
-          <button id="btn-rapido-desktop" class="btn btn-ghost">Lançamento rápido</button>
+          <button id="btn-importar-pdf" class="btn btn-secondary">📄 Importar extrato PDF</button>
+          <button id="btn-rapido-desktop" class="btn btn-secondary">⚡ Lançamento rápido</button>
           <button id="btn-add-transacao" class="btn btn-primary">+ Nova transação</button>
         </div>
       </header>
@@ -549,6 +550,34 @@
     </form>
   </div>
 
+  <div id="modal-importar-pdf" class="modal modal-wide hidden">
+    <h2>Importar extrato em PDF</h2>
+
+    <div id="pdf-step-upload">
+      <p class="icon-hint">Baixe o extrato/fatura em PDF no app do banco e selecione o arquivo aqui. Nada sai do seu navegador — a leitura é feita localmente.</p>
+      <label>Lançar como
+        <select id="pdf-pessoa"></select>
+      </label>
+      <label>Arquivo PDF
+        <input type="file" id="pdf-file-input" accept="application/pdf">
+      </label>
+      <p id="pdf-status" class="icon-hint hidden"></p>
+    </div>
+
+    <div id="pdf-step-preview" class="hidden">
+      <p class="icon-hint">Confira as linhas que consegui identificar. Ajuste o que estiver errado ou desmarque o que não é lançamento — depois é só importar. Tudo entra como pendência pra você revisar a categoria.</p>
+      <div id="pdf-preview-list" class="revisao-pendente-list"></div>
+      <div id="pdf-preview-empty" class="empty-state hidden">Não consegui identificar lançamentos nesse PDF. Talvez seja uma imagem escaneada em vez de texto — nesse caso, lança na mão mesmo.</div>
+    </div>
+
+    <div class="modal-actions">
+      <div class="modal-actions-right">
+        <button type="button" class="btn btn-ghost modal-cancel">Cancelar</button>
+        <button type="button" id="btn-pdf-confirmar" class="btn btn-primary hidden">Importar lançamentos</button>
+      </div>
+    </div>
+  </div>
+
   <div id="modal-revisao-pendente" class="modal modal-wide hidden">
     <h2>Revisar pendências</h2>
     <p class="icon-hint">Escolha a categoria de cada lançamento. A sugestão (quando aparece) é baseada na última vez que você usou essa descrição.</p>
@@ -602,6 +631,7 @@
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="config.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
