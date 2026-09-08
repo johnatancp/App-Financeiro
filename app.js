@@ -664,6 +664,8 @@ function renderAll() {
   renderCategorias();
   renderPessoas();
   renderSinoDot();
+  renderPendenteBadges();
+  renderRevisaoPendenteList();
   renderSelecaoUI();
 }
 function capitalize(s) {
@@ -678,8 +680,12 @@ function populateCategorySelects() {
 
 function populatePessoaSelects() {
   const opts = data.pessoas.map((p) => `<option value="${p.id}">${escapeHtml(p.nome)}</option>`).join('');
-  document.getElementById('t-pessoa').innerHTML = opts;
-  document.getElementById('r-pessoa').innerHTML = opts;
+  ['t-pessoa', 'r-pessoa', 'q-pessoa'].forEach((id) => {
+    const el = document.getElementById(id);
+    const prev = el.value;
+    el.innerHTML = opts;
+    if (prev && data.pessoas.some((p) => p.id === prev)) el.value = prev;
+  });
 }
 
 function renderPessoaFilterControls() {
@@ -1110,18 +1116,27 @@ document.getElementById('transacoes-tbody').addEventListener('click', (e) => {
 });
 document.getElementById('btn-add-transacao').addEventListener('click', () => openTransacaoModal(null));
 
-document.getElementById('btn-fab-rapido').addEventListener('click', () => {
-  document.getElementById('form-rapido').reset();
+function openLancamentoRapido() {
+  document.getElementById('q-desc').value = '';
+  document.getElementById('q-valor').value = '';
+  if (!document.getElementById('q-data').value) {
+    const hoje = new Date();
+    document.getElementById('q-data').value = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+  }
+  document.getElementById('q-added-flash').classList.add('hidden');
   openModal(document.getElementById('modal-rapido'));
-});
+  document.getElementById('q-desc').focus();
+}
+document.getElementById('btn-fab-rapido').addEventListener('click', openLancamentoRapido);
+document.getElementById('btn-rapido-desktop').addEventListener('click', openLancamentoRapido);
 
 document.getElementById('form-rapido').addEventListener('submit', (e) => {
   e.preventDefault();
   const tipo = document.querySelector('input[name="q-tipo"]:checked').value;
   const descricao = document.getElementById('q-desc').value.trim();
   const valor = parseFloat(document.getElementById('q-valor').value);
-  const hoje = new Date();
-  const dataStr = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+  const dataStr = document.getElementById('q-data').value;
+  const pessoaId = document.getElementById('q-pessoa').value;
   data.transactions.push({
     id: uid(),
     tipo,
@@ -1129,14 +1144,18 @@ document.getElementById('form-rapido').addEventListener('submit', (e) => {
     valor,
     data: dataStr,
     categoriaId: null,
-    pessoaId: null,
+    pessoaId,
     rascunho: true,
     criadoEm: Date.now(),
   });
-  currentDate = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  currentDate = new Date(Number(dataStr.slice(0, 4)), Number(dataStr.slice(5, 7)) - 1, 1);
   scheduleSave();
-  closeModals();
   renderAll();
+  // Mantém o modal aberto pra emendar o próximo lançamento rápido.
+  document.getElementById('q-desc').value = '';
+  document.getElementById('q-valor').value = '';
+  document.getElementById('q-added-flash').classList.remove('hidden');
+  document.getElementById('q-desc').focus();
 });
 
 function updateTransacaoFormVisibility() {
@@ -1205,6 +1224,108 @@ document.getElementById('form-transacao').addEventListener('submit', (e) => {
 document.getElementById('btn-delete-transacao').addEventListener('click', () => {
   const id = document.getElementById('t-id').value;
   if (deleteTransacao(id)) closeModals();
+});
+
+// ---------- Revisão de pendências ----------
+function pendentesTransacoes() {
+  return data.transactions
+    .filter((t) => t.rascunho)
+    .sort((a, b) => b.data.localeCompare(a.data) || (b.criadoEm || 0) - (a.criadoEm || 0));
+}
+
+function renderPendenteBadges() {
+  const n = pendentesTransacoes().length;
+  const temPendencia = n > 0;
+  document.getElementById('btn-revisao-pendente').classList.toggle('hidden', !temPendencia);
+  document.getElementById('nav-pendentes-badge').classList.toggle('hidden', !temPendencia);
+  document.getElementById('pendente-count-badge').textContent = n;
+  document.getElementById('nav-pendentes-badge').textContent = n;
+}
+
+function sugerirCategoria(descricao) {
+  const alvo = descricao.trim().toLowerCase();
+  if (!alvo) return null;
+  const candidatos = data.transactions
+    .filter((t) => !t.rascunho && t.categoriaId && t.descricao.trim().toLowerCase() === alvo)
+    .sort((a, b) => b.data.localeCompare(a.data) || (b.criadoEm || 0) - (a.criadoEm || 0));
+  return candidatos.length ? candidatos[0].categoriaId : null;
+}
+
+function categoriaOptionsHtml(selectedId) {
+  const opts = data.categories
+    .map((c) => `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${escapeHtml(c.nome)}</option>`)
+    .join('');
+  return `<option value="">Categoria…</option>${opts}`;
+}
+
+function pessoaOptionsHtml(selectedId) {
+  return data.pessoas
+    .map((p) => `<option value="${p.id}" ${p.id === selectedId ? 'selected' : ''}>${escapeHtml(p.nome)}</option>`)
+    .join('');
+}
+
+function renderRevisaoPendenteList() {
+  const pendentes = pendentesTransacoes();
+  const container = document.getElementById('revisao-pendente-list');
+  const empty = document.getElementById('revisao-pendente-empty');
+  if (pendentes.length === 0) {
+    container.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+  container.innerHTML = pendentes
+    .map((t) => {
+      const sinalNegativo = t.tipo === 'despesa';
+      const sugestao = t.categoriaId || sugerirCategoria(t.descricao);
+      return `<div class="pendente-row" data-id="${t.id}">
+      <div class="pendente-row-top">
+        <span class="pendente-data">${formatDateBR(t.data)}</span>
+        <input type="text" class="pendente-desc" value="${escapeHtml(t.descricao)}">
+        <span class="pendente-valor ${sinalNegativo ? 'amount-despesa' : 'amount-receita'}">${sinalNegativo ? '-' : '+'} ${formatCurrency(t.valor)}</span>
+      </div>
+      <div class="pendente-row-bottom">
+        <select class="pendente-pessoa">${pessoaOptionsHtml(t.pessoaId)}</select>
+        <select class="pendente-categoria">${categoriaOptionsHtml(sugestao)}</select>
+        <button type="button" class="btn btn-primary btn-sm pendente-salvar">Salvar</button>
+        <button type="button" class="icon-btn pendente-excluir" title="Excluir">${TRASH_ICON}</button>
+      </div>
+    </div>`;
+    })
+    .join('');
+}
+
+document.getElementById('btn-revisao-pendente').addEventListener('click', () => {
+  renderRevisaoPendenteList();
+  openModal(document.getElementById('modal-revisao-pendente'));
+});
+
+document.getElementById('revisao-pendente-list').addEventListener('click', (e) => {
+  const row = e.target.closest('.pendente-row');
+  if (!row) return;
+  const id = row.dataset.id;
+  if (e.target.closest('.pendente-salvar')) {
+    const t = data.transactions.find((x) => x.id === id);
+    if (!t) return;
+    const categoriaId = row.querySelector('.pendente-categoria').value;
+    if (!categoriaId) {
+      alert('Escolha uma categoria antes de salvar.');
+      return;
+    }
+    const pessoaId = row.querySelector('.pendente-pessoa').value;
+    const descricao = row.querySelector('.pendente-desc').value.trim();
+    Object.assign(t, { categoriaId, pessoaId, descricao });
+    delete t.rascunho;
+    scheduleSave();
+    renderAll();
+    return;
+  }
+  if (e.target.closest('.pendente-excluir')) {
+    if (!confirm('Excluir este lançamento pendente?')) return;
+    data.transactions = data.transactions.filter((x) => x.id !== id);
+    scheduleSave();
+    renderAll();
+  }
 });
 
 // ---------- Contas fixas (recorrentes) ----------

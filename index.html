@@ -54,7 +54,7 @@
       </button>
     </div>
     <button class="nav-item active" data-view="dashboard">Painel</button>
-    <button class="nav-item" data-view="transacoes">Transações</button>
+    <button class="nav-item" data-view="transacoes">Transações <span id="nav-pendentes-badge" class="nav-badge hidden"></span></button>
     <button class="nav-item" data-view="relatorios">Relatórios</button>
     <button class="nav-item" data-view="recorrentes">Contas fixas</button>
     <button class="nav-item" data-view="categorias">Categorias</button>
@@ -176,6 +176,8 @@
             <span id="month-label-2"></span>
             <button id="month-next-2" class="icon-btn">›</button>
           </div>
+          <button id="btn-revisao-pendente" class="btn btn-ghost hidden">Revisar pendências <span id="pendente-count-badge" class="nav-badge"></span></button>
+          <button id="btn-rapido-desktop" class="btn btn-ghost">Lançamento rápido</button>
           <button id="btn-add-transacao" class="btn btn-primary">+ Nova transação</button>
         </div>
       </header>
@@ -522,20 +524,41 @@
           <input type="radio" name="q-tipo" value="receita"> <span>Receita</span>
         </label>
       </div>
-      <label>Descrição
-        <input type="text" id="q-desc" required placeholder="Ex: Café">
+      <label>Descrição <span class="icon-hint-inline">(cole o nome que aparece na fatura, sem se preocupar)</span>
+        <input type="text" id="q-desc" required placeholder="Ex: nome esquisito da fatura">
       </label>
-      <label>Valor
-        <input type="number" id="q-valor" step="0.01" min="0.01" required placeholder="0,00">
+      <div class="field-row">
+        <label>Valor
+          <input type="number" id="q-valor" step="0.01" min="0.01" required placeholder="0,00">
+        </label>
+        <label>Data
+          <input type="date" id="q-data" required>
+        </label>
+      </div>
+      <label>Pessoa
+        <select id="q-pessoa" required></select>
       </label>
-      <p class="icon-hint">Categoria e pessoa você ajusta depois, em Transações.</p>
+      <p id="q-added-flash" class="q-added-flash hidden">Adicionado ✓ — pode lançar o próximo</p>
+      <p class="icon-hint">Categoria você ajusta depois em "Revisar pendências".</p>
       <div class="modal-actions">
         <div class="modal-actions-right">
-          <button type="button" class="btn btn-ghost modal-cancel">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Salvar</button>
+          <button type="button" class="btn btn-ghost modal-cancel">Concluído</button>
+          <button type="submit" class="btn btn-primary">Adicionar e continuar</button>
         </div>
       </div>
     </form>
+  </div>
+
+  <div id="modal-revisao-pendente" class="modal modal-wide hidden">
+    <h2>Revisar pendências</h2>
+    <p class="icon-hint">Escolha a categoria de cada lançamento. A sugestão (quando aparece) é baseada na última vez que você usou essa descrição.</p>
+    <div id="revisao-pendente-list" class="revisao-pendente-list"></div>
+    <div id="revisao-pendente-empty" class="empty-state hidden">Nenhuma pendência. Tudo revisado 🎉</div>
+    <div class="modal-actions">
+      <div class="modal-actions-right">
+        <button type="button" class="btn btn-primary modal-cancel">Fechar</button>
+      </div>
+    </div>
   </div>
 
   <div id="modal-confirmar-pagamento" class="modal hidden">

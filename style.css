@@ -676,6 +676,72 @@ tr.selecionado td {
 }
 .modal input[type=color] { padding: 4px; height: 40px; cursor: pointer; }
 .field-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.modal-wide { max-width: 620px; }
+
+.nav-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--negative);
+  color: #fff;
+  vertical-align: middle;
+  margin-left: 4px;
+}
+.icon-hint-inline { font-weight: 400; text-transform: none; letter-spacing: normal; color: var(--text-muted); font-size: 12px; }
+.q-added-flash {
+  font-size: 12px;
+  color: var(--positive);
+  margin: -8px 0 0;
+  font-weight: 600;
+}
+
+.revisao-pendente-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 55vh;
+  overflow-y: auto;
+  padding: 2px;
+  margin: 4px 0;
+}
+.pendente-row {
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  background: var(--bg-elevated);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pendente-row-top { display: flex; align-items: center; gap: 10px; }
+.pendente-data { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+.pendente-desc {
+  flex: 1;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm);
+  padding: 7px 9px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  min-width: 0;
+}
+.pendente-valor { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.pendente-row-bottom { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pendente-row-bottom select {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm);
+  padding: 7px 9px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  flex: 1;
+  min-width: 120px;
+}
+.btn-sm { padding: 7px 12px; font-size: 13px; }
 
 .icon-field-label {
   font-size: 13px;
