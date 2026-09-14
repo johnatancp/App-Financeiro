@@ -680,7 +680,7 @@ function populateCategorySelects() {
 
 function populatePessoaSelects() {
   const opts = data.pessoas.map((p) => `<option value="${p.id}">${escapeHtml(p.nome)}</option>`).join('');
-  ['t-pessoa', 'r-pessoa', 'q-pessoa', 'pdf-pessoa'].forEach((id) => {
+  ['t-pessoa', 'r-pessoa', 'q-pessoa', 'csv-pessoa'].forEach((id) => {
     const el = document.getElementById(id);
     const prev = el.value;
     el.innerHTML = opts;
@@ -1327,81 +1327,170 @@ document.getElementById('revisao-pendente-list').addEventListener('click', (e) =
   }
 });
 
-// ---------- Importar extrato em PDF ----------
-if (window.pdfjsLib) {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-}
+// ---------- Importar extrato em CSV ----------
+let csvRawRows = [];
+let csvImportRows = [];
 
-let pdfImportRows = [];
-
-async function extrairLinhasPdf(file) {
-  const buffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
-  const linhas = [];
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
-    const porLinha = new Map();
-    content.items.forEach((item) => {
-      const y = Math.round(item.transform[5]);
-      if (!porLinha.has(y)) porLinha.set(y, []);
-      porLinha.get(y).push(item);
-    });
-    [...porLinha.keys()]
-      .sort((a, b) => b - a)
-      .forEach((y) => {
-        const itens = porLinha.get(y).sort((a, b) => a.transform[4] - b.transform[4]);
-        linhas.push(itens.map((it) => it.str).join(' ').replace(/\s+/g, ' ').trim());
-      });
+function parseCsvLinha(linha, delim) {
+  const campos = [];
+  let atual = '';
+  let dentroAspas = false;
+  for (let i = 0; i < linha.length; i++) {
+    const c = linha[i];
+    if (c === '"') {
+      if (dentroAspas && linha[i + 1] === '"') {
+        atual += '"';
+        i++;
+      } else {
+        dentroAspas = !dentroAspas;
+      }
+    } else if (c === delim && !dentroAspas) {
+      campos.push(atual);
+      atual = '';
+    } else {
+      atual += c;
+    }
   }
-  return linhas.filter((l) => l.length > 0);
+  campos.push(atual);
+  return campos.map((c) => c.trim());
 }
 
-function parseValorBR(str) {
-  return parseFloat(str.replace(/\./g, '').replace(',', '.'));
+function parseCsvTexto(texto) {
+  const linhasBrutas = texto.split(/\r\n|\r|\n/).filter((l) => l.trim().length > 0);
+  if (linhasBrutas.length === 0) return [];
+  const amostra = linhasBrutas[0];
+  const delim = amostra.split(';').length >= amostra.split(',').length ? ';' : ',';
+  return linhasBrutas.map((linha) => parseCsvLinha(linha, delim));
 }
 
-function parseLinhaExtrato(linha, anoReferencia) {
-  const dataMatch = linha.match(/(\d{2})\/(\d{2})(?:\/(\d{2,4}))?/);
-  if (!dataMatch) return null;
-  const valorMatches = [...linha.matchAll(/(-?)\s?(?:R\$\s?)?(\d{1,3}(?:\.\d{3})*,\d{2})/g)];
-  if (valorMatches.length === 0) return null;
-  const ultimoValor = valorMatches[valorMatches.length - 1];
-  const valor = parseValorBR(ultimoValor[2]);
-  if (!valor || valor <= 0) return null;
-
-  const dia = dataMatch[1];
-  const mes = dataMatch[2];
-  let ano = dataMatch[3];
-  if (!ano) ano = String(anoReferencia);
-  else if (ano.length === 2) ano = `20${ano}`;
-  const dataIso = `${ano}-${mes}-${dia}`;
-
-  let descricao = linha
-    .slice(dataMatch.index + dataMatch[0].length, ultimoValor.index)
-    .replace(/[|•·]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  if (!descricao) descricao = 'Lançamento';
-
-  const textoLower = linha.toLowerCase();
-  const indicaReceita = ultimoValor[1] === '-' || /pagamento recebido|estorno|cr[eé]dito recebido|devolu[cç][aã]o|reembolso/.test(textoLower);
-
-  return { data: dataIso, descricao, valor, tipo: indicaReceita ? 'receita' : 'despesa', incluir: true };
+function parseValorGenerico(str) {
+  if (str == null) return NaN;
+  let s = String(str).trim().replace(/^R\$\s?/i, '');
+  const negativo = /^-/.test(s) || /^\(.*\)$/.test(s);
+  s = s.replace(/[()]/g, '').replace(/^-/, '').trim();
+  if (/,\d{1,2}$/.test(s)) {
+    s = s.replace(/\./g, '').replace(',', '.');
+  } else {
+    s = s.replace(/,/g, '');
+  }
+  const valor = parseFloat(s);
+  if (!isFinite(valor)) return NaN;
+  return negativo ? -Math.abs(valor) : valor;
 }
 
-function atualizarContadorImportar() {
-  const n = pdfImportRows.filter((r) => r.incluir).length;
-  document.getElementById('btn-pdf-confirmar').textContent = `Importar ${n} lançamento${n === 1 ? '' : 's'}`;
+function parseDataGenerica(str) {
+  if (!str) return null;
+  const s = String(str).trim();
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if (m) {
+    let ano = m[3];
+    if (ano.length === 2) ano = `20${ano}`;
+    return `${ano}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  }
+  m = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})/);
+  if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  return null;
 }
 
-function renderPdfPreview() {
-  document.getElementById('pdf-step-upload').classList.add('hidden');
-  document.getElementById('pdf-step-preview').classList.remove('hidden');
-  const container = document.getElementById('pdf-preview-list');
-  const empty = document.getElementById('pdf-preview-empty');
-  const btnConfirmar = document.getElementById('btn-pdf-confirmar');
-  if (pdfImportRows.length === 0) {
+function abrirImportarCsv() {
+  csvRawRows = [];
+  csvImportRows = [];
+  document.getElementById('csv-file-input').value = '';
+  document.getElementById('csv-status').classList.add('hidden');
+  document.getElementById('csv-tem-cabecalho').checked = true;
+  document.getElementById('csv-step-upload').classList.remove('hidden');
+  document.getElementById('csv-step-mapeamento').classList.add('hidden');
+  document.getElementById('csv-step-preview').classList.add('hidden');
+  document.getElementById('btn-csv-mapear-continuar').classList.add('hidden');
+  document.getElementById('btn-csv-confirmar').classList.add('hidden');
+  openModal(document.getElementById('modal-importar-csv'));
+}
+document.getElementById('btn-importar-csv').addEventListener('click', abrirImportarCsv);
+
+document.getElementById('csv-file-input').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const status = document.getElementById('csv-status');
+  status.textContent = 'Lendo o arquivo…';
+  status.classList.remove('hidden');
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      csvRawRows = parseCsvTexto(String(reader.result));
+      if (csvRawRows.length === 0) throw new Error('vazio');
+      status.classList.add('hidden');
+      document.getElementById('csv-step-upload').classList.add('hidden');
+      document.getElementById('csv-step-mapeamento').classList.remove('hidden');
+      document.getElementById('btn-csv-mapear-continuar').classList.remove('hidden');
+      renderColunasCsv();
+    } catch (err) {
+      console.error(err);
+      status.textContent = 'Não consegui ler esse arquivo. Confirme se é o CSV exportado do banco.';
+      status.classList.remove('hidden');
+    }
+  };
+  reader.onerror = () => {
+    status.textContent = 'Não consegui ler esse arquivo.';
+    status.classList.remove('hidden');
+  };
+  reader.readAsText(file, 'UTF-8');
+});
+
+function renderColunasCsv() {
+  const temCabecalho = document.getElementById('csv-tem-cabecalho').checked;
+  const primeira = csvRawRows[0] || [];
+  const numColunas = Math.max(...csvRawRows.slice(0, 20).map((l) => l.length));
+  const labels = [];
+  for (let i = 0; i < numColunas; i++) {
+    labels.push(temCabecalho && primeira[i] ? primeira[i] : `Coluna ${i + 1}`);
+  }
+  const opts = (chaves) => {
+    let melhorIdx = -1;
+    labels.forEach((l, i) => {
+      const low = l.toLowerCase();
+      if (melhorIdx === -1 && chaves.some((k) => low.includes(k))) melhorIdx = i;
+    });
+    return labels.map((l, i) => `<option value="${i}" ${i === melhorIdx ? 'selected' : ''}>${escapeHtml(l)}</option>`).join('');
+  };
+  document.getElementById('csv-col-data').innerHTML = opts(['data', 'dia', 'date']);
+  document.getElementById('csv-col-descricao').innerHTML = opts(['descri', 'histor', 'lançamento', 'lancamento', 'estabelecimento', 'title', 'memo']);
+  document.getElementById('csv-col-valor').innerHTML = opts(['valor', 'amount', 'value']);
+}
+document.getElementById('csv-tem-cabecalho').addEventListener('change', renderColunasCsv);
+
+document.getElementById('btn-csv-mapear-continuar').addEventListener('click', () => {
+  const temCabecalho = document.getElementById('csv-tem-cabecalho').checked;
+  const idxData = Number(document.getElementById('csv-col-data').value);
+  const idxDesc = Number(document.getElementById('csv-col-descricao').value);
+  const idxValor = Number(document.getElementById('csv-col-valor').value);
+  const linhas = temCabecalho ? csvRawRows.slice(1) : csvRawRows;
+  csvImportRows = linhas
+    .map((cols) => {
+      const dataIso = parseDataGenerica(cols[idxData]);
+      const valorBruto = parseValorGenerico(cols[idxValor]);
+      const descricao = (cols[idxDesc] || '').trim();
+      if (!dataIso || !valorBruto) return null;
+      return { data: dataIso, descricao: descricao || 'Lançamento', valor: Math.abs(valorBruto), tipo: 'despesa', incluir: true };
+    })
+    .filter(Boolean);
+  document.getElementById('csv-step-mapeamento').classList.add('hidden');
+  document.getElementById('btn-csv-mapear-continuar').classList.add('hidden');
+  renderCsvPreview();
+});
+
+function atualizarContadorImportarCsv() {
+  const n = csvImportRows.filter((r) => r.incluir).length;
+  document.getElementById('btn-csv-confirmar').textContent = `Importar ${n} lançamento${n === 1 ? '' : 's'}`;
+}
+
+function renderCsvPreview() {
+  document.getElementById('csv-step-preview').classList.remove('hidden');
+  const container = document.getElementById('csv-preview-list');
+  const empty = document.getElementById('csv-preview-empty');
+  const btnConfirmar = document.getElementById('btn-csv-confirmar');
+  if (csvImportRows.length === 0) {
     container.innerHTML = '';
     empty.classList.remove('hidden');
     btnConfirmar.classList.add('hidden');
@@ -1409,77 +1498,45 @@ function renderPdfPreview() {
   }
   empty.classList.add('hidden');
   btnConfirmar.classList.remove('hidden');
-  atualizarContadorImportar();
-  container.innerHTML = pdfImportRows
+  atualizarContadorImportarCsv();
+  container.innerHTML = csvImportRows
     .map((r, i) => `<div class="pendente-row" data-idx="${i}">
       <div class="pendente-row-top">
-        <input type="checkbox" class="pdf-incluir" ${r.incluir ? 'checked' : ''} title="Incluir na importação">
-        <input type="date" class="pdf-data" value="${r.data}">
-        <input type="text" class="pendente-desc pdf-desc" value="${escapeHtml(r.descricao)}">
-        <input type="number" step="0.01" min="0.01" class="pdf-valor" value="${r.valor}">
+        <input type="checkbox" class="csv-incluir" ${r.incluir ? 'checked' : ''} title="Incluir na importação">
+        <input type="date" class="csv-data" value="${r.data}">
+        <input type="text" class="pendente-desc csv-desc" value="${escapeHtml(r.descricao)}">
+        <input type="number" step="0.01" min="0.01" class="csv-valor" value="${r.valor}">
       </div>
       <div class="pendente-row-bottom">
-        <label class="type-toggle"><input type="radio" name="pdf-tipo-${i}" value="despesa" class="pdf-tipo" ${r.tipo === 'despesa' ? 'checked' : ''}> <span>Despesa</span></label>
-        <label class="type-toggle"><input type="radio" name="pdf-tipo-${i}" value="receita" class="pdf-tipo" ${r.tipo === 'receita' ? 'checked' : ''}> <span>Receita</span></label>
+        <label class="type-toggle"><input type="radio" name="csv-tipo-${i}" value="despesa" class="csv-tipo" ${r.tipo === 'despesa' ? 'checked' : ''}> <span>Despesa</span></label>
+        <label class="type-toggle"><input type="radio" name="csv-tipo-${i}" value="receita" class="csv-tipo" ${r.tipo === 'receita' ? 'checked' : ''}> <span>Receita</span></label>
       </div>
     </div>`)
     .join('');
 }
 
-async function processarPdfImportado(file) {
-  const status = document.getElementById('pdf-status');
-  status.textContent = 'Lendo o PDF…';
-  status.classList.remove('hidden');
-  try {
-    const linhas = await extrairLinhasPdf(file);
-    const anoRef = new Date().getFullYear();
-    pdfImportRows = linhas.map((l) => parseLinhaExtrato(l, anoRef)).filter(Boolean);
-    status.classList.add('hidden');
-    renderPdfPreview();
-  } catch (err) {
-    console.error(err);
-    status.textContent = 'Não consegui ler esse PDF. Talvez seja uma imagem escaneada, ou o arquivo esteja corrompido — tente outro.';
-    status.classList.remove('hidden');
-  }
-}
-
-function abrirImportarPdf() {
-  pdfImportRows = [];
-  document.getElementById('pdf-file-input').value = '';
-  document.getElementById('pdf-status').classList.add('hidden');
-  document.getElementById('pdf-step-upload').classList.remove('hidden');
-  document.getElementById('pdf-step-preview').classList.add('hidden');
-  document.getElementById('btn-pdf-confirmar').classList.add('hidden');
-  openModal(document.getElementById('modal-importar-pdf'));
-}
-document.getElementById('btn-importar-pdf').addEventListener('click', abrirImportarPdf);
-document.getElementById('pdf-file-input').addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  if (file) processarPdfImportado(file);
-});
-
-document.getElementById('pdf-preview-list').addEventListener('input', (e) => {
+document.getElementById('csv-preview-list').addEventListener('input', (e) => {
   const row = e.target.closest('.pendente-row');
   if (!row) return;
   const i = Number(row.dataset.idx);
-  if (e.target.classList.contains('pdf-data')) pdfImportRows[i].data = e.target.value;
-  if (e.target.classList.contains('pdf-desc')) pdfImportRows[i].descricao = e.target.value;
-  if (e.target.classList.contains('pdf-valor')) pdfImportRows[i].valor = parseFloat(e.target.value) || 0;
+  if (e.target.classList.contains('csv-data')) csvImportRows[i].data = e.target.value;
+  if (e.target.classList.contains('csv-desc')) csvImportRows[i].descricao = e.target.value;
+  if (e.target.classList.contains('csv-valor')) csvImportRows[i].valor = parseFloat(e.target.value) || 0;
 });
-document.getElementById('pdf-preview-list').addEventListener('change', (e) => {
+document.getElementById('csv-preview-list').addEventListener('change', (e) => {
   const row = e.target.closest('.pendente-row');
   if (!row) return;
   const i = Number(row.dataset.idx);
-  if (e.target.classList.contains('pdf-incluir')) {
-    pdfImportRows[i].incluir = e.target.checked;
-    atualizarContadorImportar();
+  if (e.target.classList.contains('csv-incluir')) {
+    csvImportRows[i].incluir = e.target.checked;
+    atualizarContadorImportarCsv();
   }
-  if (e.target.classList.contains('pdf-tipo')) pdfImportRows[i].tipo = e.target.value;
+  if (e.target.classList.contains('csv-tipo')) csvImportRows[i].tipo = e.target.value;
 });
 
-document.getElementById('btn-pdf-confirmar').addEventListener('click', () => {
-  const pessoaId = document.getElementById('pdf-pessoa').value;
-  const selecionadas = pdfImportRows.filter((r) => r.incluir && r.data && r.descricao && r.valor > 0);
+document.getElementById('btn-csv-confirmar').addEventListener('click', () => {
+  const pessoaId = document.getElementById('csv-pessoa').value;
+  const selecionadas = csvImportRows.filter((r) => r.incluir && r.data && r.descricao && r.valor > 0);
   if (selecionadas.length === 0) return;
   let carimbo = Date.now();
   selecionadas.forEach((r) => {

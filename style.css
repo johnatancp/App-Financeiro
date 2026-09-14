@@ -717,8 +717,8 @@ tr.selecionado td {
   gap: 8px;
 }
 .pendente-row-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.pdf-data { width: 132px; flex: none; }
-.pdf-valor { width: 100px; flex: none; }
+.csv-data { width: 132px; flex: none; }
+.csv-valor { width: 100px; flex: none; }
 .pendente-data { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
 .pendente-desc {
   flex: 1;
@@ -745,6 +745,14 @@ tr.selecionado td {
   min-width: 120px;
 }
 .btn-sm { padding: 7px 12px; font-size: 13px; }
+.csv-checkbox-row {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px !important;
+  font-size: 13px;
+  color: var(--text);
+}
+.csv-checkbox-row input { width: auto; }
 
 .icon-field-label {
   font-size: 13px;

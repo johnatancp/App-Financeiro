@@ -177,7 +177,7 @@
             <button id="month-next-2" class="icon-btn">›</button>
           </div>
           <button id="btn-revisao-pendente" class="btn btn-ghost hidden">Revisar pendências <span id="pendente-count-badge" class="nav-badge"></span></button>
-          <button id="btn-importar-pdf" class="btn btn-secondary">📄 Importar extrato PDF</button>
+          <button id="btn-importar-csv" class="btn btn-secondary">📄 Importar extrato CSV</button>
           <button id="btn-add-transacao" class="btn btn-primary">+ Nova transação</button>
         </div>
       </header>
@@ -553,30 +553,48 @@
     </form>
   </div>
 
-  <div id="modal-importar-pdf" class="modal modal-wide hidden">
-    <h2>Importar extrato em PDF</h2>
+  <div id="modal-importar-csv" class="modal modal-wide hidden">
+    <h2>Importar extrato em CSV</h2>
 
-    <div id="pdf-step-upload">
-      <p class="icon-hint">Baixe o extrato/fatura em PDF no app do banco e selecione o arquivo aqui. Nada sai do seu navegador — a leitura é feita localmente.</p>
+    <div id="csv-step-upload">
+      <p class="icon-hint">Baixe o extrato em CSV no app/site do banco e selecione o arquivo aqui. Nada sai do seu navegador — a leitura é feita localmente.</p>
       <label>Lançar como
-        <select id="pdf-pessoa"></select>
+        <select id="csv-pessoa"></select>
       </label>
-      <label>Arquivo PDF
-        <input type="file" id="pdf-file-input" accept="application/pdf">
+      <label>Arquivo CSV
+        <input type="file" id="csv-file-input" accept=".csv,text/csv">
       </label>
-      <p id="pdf-status" class="icon-hint hidden"></p>
+      <p id="csv-status" class="icon-hint hidden"></p>
     </div>
 
-    <div id="pdf-step-preview" class="hidden">
-      <p class="icon-hint">Confira as linhas que consegui identificar. Ajuste o que estiver errado ou desmarque o que não é lançamento — depois é só importar. Tudo entra como pendência pra você revisar a categoria.</p>
-      <div id="pdf-preview-list" class="revisao-pendente-list"></div>
-      <div id="pdf-preview-empty" class="empty-state hidden">Não consegui identificar lançamentos nesse PDF. Talvez seja uma imagem escaneada em vez de texto — nesse caso, lança na mão mesmo.</div>
+    <div id="csv-step-mapeamento" class="hidden">
+      <label class="csv-checkbox-row">
+        <input type="checkbox" id="csv-tem-cabecalho" checked> A primeira linha é cabeçalho (nome das colunas)
+      </label>
+      <div class="field-row">
+        <label>Coluna da Data
+          <select id="csv-col-data"></select>
+        </label>
+        <label>Coluna da Descrição
+          <select id="csv-col-descricao"></select>
+        </label>
+        <label>Coluna do Valor
+          <select id="csv-col-valor"></select>
+        </label>
+      </div>
+    </div>
+
+    <div id="csv-step-preview" class="hidden">
+      <p class="icon-hint">Confira as linhas que consegui identificar (marquei tudo como despesa — troque pra receita o que for entrada de dinheiro). Ajuste o que estiver errado ou desmarque o que não é lançamento.</p>
+      <div id="csv-preview-list" class="revisao-pendente-list"></div>
+      <div id="csv-preview-empty" class="empty-state hidden">Não consegui identificar lançamentos com essas colunas. Confira se escolheu a coluna certa de Data e Valor.</div>
     </div>
 
     <div class="modal-actions">
       <div class="modal-actions-right">
         <button type="button" class="btn btn-ghost modal-cancel">Cancelar</button>
-        <button type="button" id="btn-pdf-confirmar" class="btn btn-primary hidden">Importar lançamentos</button>
+        <button type="button" id="btn-csv-mapear-continuar" class="btn btn-primary hidden">Continuar</button>
+        <button type="button" id="btn-csv-confirmar" class="btn btn-primary hidden">Importar lançamentos</button>
       </div>
     </div>
   </div>
@@ -634,7 +652,6 @@
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="config.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
