@@ -1460,6 +1460,12 @@ function renderColunasCsv() {
 }
 document.getElementById('csv-tem-cabecalho').addEventListener('change', renderColunasCsv);
 
+function encontrarDuplicataExistente(dataIso, valor, pessoaId) {
+  return data.transactions.find(
+    (t) => t.pessoaId === pessoaId && t.data === dataIso && Math.abs(t.valor - valor) < 0.005
+  );
+}
+
 document.getElementById('btn-csv-mapear-continuar').addEventListener('click', () => {
   const temCabecalho = document.getElementById('csv-tem-cabecalho').checked;
   const idxData = Number(document.getElementById('csv-col-data').value);
@@ -1476,13 +1482,19 @@ document.getElementById('btn-csv-mapear-continuar').addEventListener('click', ()
   // Só confio no sinal (+/-) pra decidir despesa/receita se o arquivo tiver os dois tipos de valor.
   // Se for tudo positivo (ex: fatura de cartão, sem sinal), assumo despesa — mais comum no uso diário.
   const usarSinal = brutos.some((r) => r.valorBruto < 0) && brutos.some((r) => r.valorBruto > 0);
-  csvImportRows = brutos.map((r) => ({
-    data: r.dataIso,
-    descricao: r.descricao || 'Lançamento',
-    valor: Math.abs(r.valorBruto),
-    tipo: usarSinal ? (r.valorBruto < 0 ? 'despesa' : 'receita') : 'despesa',
-    incluir: true,
-  }));
+  const pessoaId = document.getElementById('csv-pessoa').value;
+  csvImportRows = brutos.map((r) => {
+    const valor = Math.abs(r.valorBruto);
+    const duplicata = encontrarDuplicataExistente(r.dataIso, valor, pessoaId);
+    return {
+      data: r.dataIso,
+      descricao: r.descricao || 'Lançamento',
+      valor,
+      tipo: usarSinal ? (r.valorBruto < 0 ? 'despesa' : 'receita') : 'despesa',
+      incluir: !duplicata,
+      duplicataDescricao: duplicata ? duplicata.descricao : null,
+    };
+  });
   document.getElementById('csv-step-mapeamento').classList.add('hidden');
   document.getElementById('btn-csv-mapear-continuar').classList.add('hidden');
   renderCsvPreview();
@@ -1498,17 +1510,25 @@ function renderCsvPreview() {
   const container = document.getElementById('csv-preview-list');
   const empty = document.getElementById('csv-preview-empty');
   const btnConfirmar = document.getElementById('btn-csv-confirmar');
+  const avisoDup = document.getElementById('csv-dup-aviso');
   if (csvImportRows.length === 0) {
     container.innerHTML = '';
     empty.classList.remove('hidden');
     btnConfirmar.classList.add('hidden');
+    avisoDup.classList.add('hidden');
     return;
   }
   empty.classList.add('hidden');
   btnConfirmar.classList.remove('hidden');
   atualizarContadorImportarCsv();
+  const nDuplicatas = csvImportRows.filter((r) => r.duplicataDescricao).length;
+  avisoDup.classList.toggle('hidden', nDuplicatas === 0);
+  if (nDuplicatas > 0) {
+    avisoDup.textContent = `⚠ ${nDuplicatas} lançamento${nDuplicatas === 1 ? '' : 's'} parece${nDuplicatas === 1 ? '' : 'm'} já ter sido lançado (mesma pessoa, data e valor) — deixei desmarcado, revise antes de incluir.`;
+  }
   container.innerHTML = csvImportRows
-    .map((r, i) => `<div class="pendente-row" data-idx="${i}">
+    .map((r, i) => `<div class="pendente-row ${r.duplicataDescricao ? 'pendente-row-dup' : ''}" data-idx="${i}">
+      ${r.duplicataDescricao ? `<div class="pendente-dup-aviso">⚠ Possível duplicata — já existe "${escapeHtml(r.duplicataDescricao)}" nessa data e valor</div>` : ''}
       <div class="pendente-row-top">
         <input type="checkbox" class="csv-incluir" ${r.incluir ? 'checked' : ''} title="Incluir na importação">
         <input type="date" class="csv-data" value="${r.data}">

@@ -753,6 +753,22 @@ tr.selecionado td {
   color: var(--text);
 }
 .csv-checkbox-row input { width: auto; }
+.csv-dup-aviso-geral {
+  font-size: 12px;
+  color: var(--negative);
+  background: color-mix(in srgb, var(--negative) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--negative) 30%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  margin: 4px 0 0;
+}
+.pendente-row-dup { border-color: var(--negative); }
+.pendente-dup-aviso {
+  font-size: 12px;
+  color: var(--negative);
+  font-weight: 600;
+  margin-bottom: 2px;
+}
 
 .icon-field-label {
   font-size: 13px;
