@@ -1466,15 +1466,23 @@ document.getElementById('btn-csv-mapear-continuar').addEventListener('click', ()
   const idxDesc = Number(document.getElementById('csv-col-descricao').value);
   const idxValor = Number(document.getElementById('csv-col-valor').value);
   const linhas = temCabecalho ? csvRawRows.slice(1) : csvRawRows;
-  csvImportRows = linhas
-    .map((cols) => {
-      const dataIso = parseDataGenerica(cols[idxData]);
-      const valorBruto = parseValorGenerico(cols[idxValor]);
-      const descricao = (cols[idxDesc] || '').trim();
-      if (!dataIso || !valorBruto) return null;
-      return { data: dataIso, descricao: descricao || 'Lançamento', valor: Math.abs(valorBruto), tipo: 'despesa', incluir: true };
-    })
-    .filter(Boolean);
+  const brutos = linhas
+    .map((cols) => ({
+      dataIso: parseDataGenerica(cols[idxData]),
+      valorBruto: parseValorGenerico(cols[idxValor]),
+      descricao: (cols[idxDesc] || '').trim(),
+    }))
+    .filter((r) => r.dataIso && r.valorBruto);
+  // Só confio no sinal (+/-) pra decidir despesa/receita se o arquivo tiver os dois tipos de valor.
+  // Se for tudo positivo (ex: fatura de cartão, sem sinal), assumo despesa — mais comum no uso diário.
+  const usarSinal = brutos.some((r) => r.valorBruto < 0) && brutos.some((r) => r.valorBruto > 0);
+  csvImportRows = brutos.map((r) => ({
+    data: r.dataIso,
+    descricao: r.descricao || 'Lançamento',
+    valor: Math.abs(r.valorBruto),
+    tipo: usarSinal ? (r.valorBruto < 0 ? 'despesa' : 'receita') : 'despesa',
+    incluir: true,
+  }));
   document.getElementById('csv-step-mapeamento').classList.add('hidden');
   document.getElementById('btn-csv-mapear-continuar').classList.add('hidden');
   renderCsvPreview();
