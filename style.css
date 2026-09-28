@@ -745,6 +745,10 @@ tr.selecionado td {
   min-width: 120px;
 }
 .btn-sm { padding: 7px 12px; font-size: 13px; }
+.rel-busca-label { flex: 1 1 240px; }
+.rel-busca-label input { width: 100%; }
+.badge-nao-paga { background: color-mix(in srgb, var(--negative) 18%, transparent); color: var(--negative); }
+.row-action-icon[data-role="pay"]:hover { color: var(--positive); }
 .csv-checkbox-row {
   flex-direction: row !important;
   align-items: center;

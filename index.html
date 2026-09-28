@@ -241,6 +241,16 @@
               <option value="balanco">Balanço</option>
             </select>
           </label>
+          <label>Status
+            <select id="rel-status">
+              <option value="todos">Todos</option>
+              <option value="pagas">Pagas</option>
+              <option value="nao-pagas">Não pagas</option>
+            </select>
+          </label>
+          <label class="rel-busca-label">Pesquisar na descrição
+            <input type="search" id="rel-busca" placeholder="Ex: obra, netflix, padaria…">
+          </label>
         </div>
       </div>
 
@@ -384,6 +394,9 @@
           <select id="t-pessoa" required></select>
         </label>
       </div>
+      <label id="t-nao-paga-row" class="csv-checkbox-row">
+        <input type="checkbox" id="t-nao-paga"> Ainda não foi paga/recebida (a prazo)
+      </label>
       <div class="modal-actions">
         <button type="button" id="btn-delete-transacao" class="btn btn-danger hidden">Excluir</button>
         <div class="modal-actions-right">

@@ -316,7 +316,8 @@ const GENERIC_ICON = ICON_LIBRARY[GENERIC_ICON_KEY];
 
 // ---------- Ícones de ação (editar / excluir / duplicar) ----------
 const TRASH_ICON = `<svg ${ICON_ATTRS}><path d="M4 7h16"/><path d="M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>`;
-const DUPLICATE_ICON = `<svg ${ICON_ATTRS}><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>`;
+const CHECK_ICON = `<svg ${ICON_ATTRS}><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`;
+const DUPLICATE_ICON =`<svg ${ICON_ATTRS}><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>`;
 function rowActionIcon(role, icon, id, title) {
   const idAttr = id ? ` data-id="${id}"` : '';
   return `<span class="row-action-icon" data-role="${role}"${idAttr} title="${title}">${icon}</span>`;
@@ -395,6 +396,10 @@ function pessoaMatches(item) {
 function clampDay(year, monthIndex, day) {
   const lastDay = new Date(year, monthIndex + 1, 0).getDate();
   return Math.min(day, lastDay);
+}
+// Padrão é paga; só `paga: false` marca uma transação a prazo / ainda não paga.
+function isPaga(t) {
+  return t.paga !== false;
 }
 function transactionSign(t) {
   if (t.tipo === 'receita') return 1;
@@ -717,15 +722,22 @@ function pendentesRecorrentesPorTipo(tipo, key) {
     .reduce((a, r) => a + r.valor, 0);
 }
 
+// Transações a prazo (paga:false) até o mês visto — entram em "A pagar/A receber", não no saldo.
+function naoPagasPorTipo(tipo, key) {
+  return data.transactions
+    .filter((t) => pessoaMatches(t) && !isPaga(t) && t.tipo === tipo && t.data.slice(0, 7) <= key)
+    .reduce((a, t) => a + t.valor, 0);
+}
+
 function renderDashboard() {
   const key = monthKey(currentDate);
-  const pessoaTx = data.transactions.filter(pessoaMatches);
+  const pessoaTx = data.transactions.filter((t) => pessoaMatches(t) && isPaga(t));
   const saldoTotal = pessoaTx.reduce((acc, t) => acc + transactionSign(t) * t.valor, 0);
   const monthTx = pessoaTx.filter((t) => t.data.slice(0, 7) === key);
   const receitas = monthTx.filter((t) => t.tipo === 'receita').reduce((a, t) => a + t.valor, 0);
   const despesas = monthTx.filter((t) => t.tipo === 'despesa').reduce((a, t) => a + t.valor, 0);
-  const aReceber = pendentesRecorrentesPorTipo('receita', key);
-  const aPagar = pendentesRecorrentesPorTipo('despesa', key);
+  const aReceber = pendentesRecorrentesPorTipo('receita', key) + naoPagasPorTipo('receita', key);
+  const aPagar = pendentesRecorrentesPorTipo('despesa', key) + naoPagasPorTipo('despesa', key);
   const saldoPrevisto = saldoTotal + aReceber - aPagar;
 
   document.getElementById('stat-saldo').textContent = formatCurrency(saldoTotal);
@@ -754,7 +766,7 @@ function renderComparativo(key) {
   const tbody = document.getElementById('comparativo-tbody');
   tbody.innerHTML = data.pessoas
     .map((p) => {
-      const monthTx = data.transactions.filter((t) => t.pessoaId === p.id && t.data.slice(0, 7) === key);
+      const monthTx = data.transactions.filter((t) => t.pessoaId === p.id && isPaga(t) && t.data.slice(0, 7) === key);
       const receitas = monthTx.filter((t) => t.tipo === 'receita').reduce((a, t) => a + t.valor, 0);
       const despesas = monthTx.filter((t) => t.tipo === 'despesa').reduce((a, t) => a + t.valor, 0);
       return `<tr>
@@ -783,7 +795,7 @@ document.getElementById('chart-categorias').addEventListener('click', (e) => {
   const barRow = e.target.closest('.bar-row[data-cat-id]');
   if (barRow) {
     const key = monthKey(currentDate);
-    const despesas = data.transactions.filter((t) => pessoaMatches(t) && t.data.slice(0, 7) === key && t.tipo === 'despesa');
+    const despesas = data.transactions.filter((t) => pessoaMatches(t) && isPaga(t) && t.data.slice(0, 7) === key && t.tipo === 'despesa');
     abrirDetalheCategoria(barRow.dataset.catId, despesas);
   }
 });
@@ -800,7 +812,7 @@ function renderDespesasCard(key) {
 function renderDespesasRecentesList() {
   const container = document.getElementById('chart-categorias');
   const txs = data.transactions
-    .filter((t) => pessoaMatches(t) && t.tipo === 'despesa')
+    .filter((t) => pessoaMatches(t) && isPaga(t) && t.tipo === 'despesa')
     .sort((a, b) => b.data.localeCompare(a.data) || (b.criadoEm || 0) - (a.criadoEm || 0))
     .slice(0, 10);
   if (txs.length === 0) {
@@ -851,7 +863,7 @@ function categoriaBarsHtml(despesas) {
 
 function renderBarCategorias(key) {
   const container = document.getElementById('chart-categorias');
-  const despesas = data.transactions.filter((t) => pessoaMatches(t) && t.data.slice(0, 7) === key && t.tipo === 'despesa');
+  const despesas = data.transactions.filter((t) => pessoaMatches(t) && isPaga(t) && t.data.slice(0, 7) === key && t.tipo === 'despesa');
   container.innerHTML = categoriaBarsHtml(despesas) || '<div class="empty-state">Sem despesas neste mês.</div>';
 }
 
@@ -873,7 +885,7 @@ function renderChartMeses() {
   }
   const totals = months.map((d) => {
     const key = monthKey(d);
-    const txs = data.transactions.filter((t) => pessoaMatches(t) && t.data.slice(0, 7) === key);
+    const txs = data.transactions.filter((t) => pessoaMatches(t) && isPaga(t) && t.data.slice(0, 7) === key);
     return {
       d,
       receitas: txs.filter((t) => t.tipo === 'receita').reduce((a, t) => a + t.valor, 0),
@@ -1063,11 +1075,12 @@ function renderTransacoes() {
       const pessoaCell = pessoa ? `${pessoaAvatarBadge(pessoa)}${escapeHtml(pessoa.nome)}` : '—';
       return `<tr data-id="${t.id}" data-selecao-key="transacao:${t.id}">
       <td>${formatDateBR(t.data)}</td>
-      <td>${escapeHtml(t.descricao)}${t.rascunho ? ' <span class="balanco-badge">Ajustar</span>' : ''}</td>
+      <td>${escapeHtml(t.descricao)}${t.rascunho ? ' <span class="balanco-badge">Ajustar</span>' : ''}${!isPaga(t) ? ` <span class="balanco-badge badge-nao-paga">${t.tipo === 'receita' ? 'A receber' : 'A pagar'}</span>` : ''}</td>
       <td>${categoriaCell}</td>
       <td>${pessoaCell}</td>
       <td class="right ${sinalNegativo ? 'amount-despesa' : 'amount-receita'}">${sinalNegativo ? '-' : '+'} ${formatCurrency(t.valor)}</td>
       <td class="row-actions">
+        ${!isPaga(t) ? rowActionIcon('pay', CHECK_ICON, t.id, t.tipo === 'receita' ? 'Marcar como recebida' : 'Marcar como paga') : ''}
         ${rowActionIcon('duplicate', DUPLICATE_ICON, t.id, 'Duplicar')}
         ${rowActionIcon('delete', TRASH_ICON, t.id, 'Excluir')}
       </td>
@@ -1091,6 +1104,7 @@ function duplicateTransacao(id) {
   const novo = { ...t, id: uid() };
   novo.data = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
   novo.criadoEm = Date.now();
+  delete novo.paga;
   data.transactions.push(novo);
   currentDate = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
   scheduleSave();
@@ -1108,6 +1122,16 @@ document.getElementById('transacoes-tbody').addEventListener('click', (e) => {
   const dupIcon = e.target.closest('[data-role="duplicate"]');
   if (dupIcon) {
     duplicateTransacao(dupIcon.dataset.id);
+    return;
+  }
+  const payIcon = e.target.closest('[data-role="pay"]');
+  if (payIcon) {
+    const t = data.transactions.find((x) => x.id === payIcon.dataset.id);
+    if (t) {
+      delete t.paga;
+      scheduleSave();
+      renderAll();
+    }
     return;
   }
   const tr = e.target.closest('tr[data-id]');
@@ -1163,6 +1187,7 @@ function updateTransacaoFormVisibility() {
   document.getElementById('t-operacao-row').classList.toggle('hidden', !isBalanco);
   document.getElementById('t-categoria-row').classList.toggle('hidden', isBalanco);
   document.getElementById('t-categoria').required = !isBalanco;
+  document.getElementById('t-nao-paga-row').classList.toggle('hidden', isBalanco);
 }
 document.querySelectorAll('input[name="t-tipo"]').forEach((r) => r.addEventListener('change', updateTransacaoFormVisibility));
 
@@ -1184,6 +1209,7 @@ function openTransacaoModal(id) {
     document.getElementById('t-data').value = t.data;
     if (t.categoriaId) document.getElementById('t-categoria').value = t.categoriaId;
     if (t.pessoaId) document.getElementById('t-pessoa').value = t.pessoaId;
+    document.getElementById('t-nao-paga').checked = !isPaga(t);
   } else {
     const today = new Date();
     const defaultDate =
@@ -1208,12 +1234,18 @@ document.getElementById('form-transacao').addEventListener('submit', (e) => {
   const categoriaId = isBalanco ? null : document.getElementById('t-categoria').value;
   const pessoaId = document.getElementById('t-pessoa').value;
 
+  const naoPaga = !isBalanco && document.getElementById('t-nao-paga').checked;
+
   if (id) {
     const t = data.transactions.find((x) => x.id === id);
     Object.assign(t, { tipo, operacao, descricao, valor, data: dataStr, categoriaId, pessoaId });
     delete t.rascunho;
+    if (naoPaga) t.paga = false;
+    else delete t.paga;
   } else {
-    data.transactions.push({ id: uid(), tipo, operacao, descricao, valor, data: dataStr, categoriaId, pessoaId, criadoEm: Date.now() });
+    const nova = { id: uid(), tipo, operacao, descricao, valor, data: dataStr, categoriaId, pessoaId, criadoEm: Date.now() };
+    if (naoPaga) nova.paga = false;
+    data.transactions.push(nova);
   }
   scheduleSave();
   closeModals();
@@ -2018,14 +2050,24 @@ function relatorioTransacoesFiltradas() {
   const pessoaId = document.getElementById('rel-pessoa').value;
   const categoriaId = document.getElementById('rel-categoria').value;
   const tipo = document.getElementById('rel-tipo').value;
+  const status = document.getElementById('rel-status').value;
+  const busca = normalizarBusca(document.getElementById('rel-busca').value);
   return data.transactions.filter((t) => {
     if (inicio && t.data < inicio) return false;
     if (fim && t.data > fim) return false;
     if (pessoaId !== 'todos' && t.pessoaId !== pessoaId) return false;
     if (categoriaId !== 'todas' && (t.categoriaId || '') !== categoriaId) return false;
     if (tipo !== 'todos' && t.tipo !== tipo) return false;
+    if (status === 'pagas' && !isPaga(t)) return false;
+    if (status === 'nao-pagas' && isPaga(t)) return false;
+    if (busca && !normalizarBusca(t.descricao).includes(busca)) return false;
     return true;
   });
+}
+
+// Busca sem diferenciar maiúscula/minúscula nem acento ("padaria" acha "Padaría").
+function normalizarBusca(s) {
+  return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 }
 
 let relatorioSort = { field: 'data', dir: 'desc' };
@@ -2067,7 +2109,7 @@ function renderRelatorioTabela(txs) {
       const pessoaCell = pessoa ? `${pessoaAvatarBadge(pessoa)}${escapeHtml(pessoa.nome)}` : '—';
       return `<tr>
       <td>${formatDateBR(t.data)}</td>
-      <td>${escapeHtml(t.descricao)}</td>
+      <td>${escapeHtml(t.descricao)}${!isPaga(t) ? ` <span class="balanco-badge badge-nao-paga">${t.tipo === 'receita' ? 'A receber' : 'A pagar'}</span>` : ''}</td>
       <td>${categoriaCell}</td>
       <td>${pessoaCell}</td>
       <td class="right ${sinalNegativo ? 'amount-despesa' : 'amount-receita'}">${sinalNegativo ? '-' : '+'} ${formatCurrency(t.valor)}</td>
@@ -2138,9 +2180,10 @@ document.getElementById('rel-periodo').addEventListener('change', (e) => {
   document.getElementById('rel-data-fim-label').classList.toggle('hidden', !isCustom);
   renderRelatorio();
 });
-['rel-data-inicio', 'rel-data-fim', 'rel-pessoa', 'rel-categoria', 'rel-tipo'].forEach((id) => {
+['rel-data-inicio', 'rel-data-fim', 'rel-pessoa', 'rel-categoria', 'rel-tipo', 'rel-status'].forEach((id) => {
   document.getElementById(id).addEventListener('change', renderRelatorio);
 });
+document.getElementById('rel-busca').addEventListener('input', renderRelatorio);
 document.getElementById('rel-chart-categorias').addEventListener('click', (e) => {
   const barRow = e.target.closest('.bar-row[data-cat-id]');
   if (!barRow) return;
@@ -2158,11 +2201,15 @@ document.getElementById('btn-exportar-relatorio-pdf').addEventListener('click', 
   let periodoTexto;
   if (!inicio && !fim) periodoTexto = 'Todo o período';
   else periodoTexto = `${inicio ? formatDateBR(inicio) : 'início'} até ${fim ? formatDateBR(fim) : 'hoje'}`;
-  const filtros = [
+  const filtrosLista = [
     `Pessoa: ${selectedText('rel-pessoa')}`,
     `Categoria: ${selectedText('rel-categoria')}`,
     `Tipo: ${selectedText('rel-tipo')}`,
-  ].join('  •  ');
+    `Status: ${selectedText('rel-status')}`,
+  ];
+  const busca = document.getElementById('rel-busca').value.trim();
+  if (busca) filtrosLista.push(`Busca: "${busca}"`);
+  const filtros = filtrosLista.map(escapeHtml).join('  •  ');
   document.getElementById('rel-print-header').innerHTML = `
     <h1>Relatório financeiro</h1>
     <div class="rel-print-sub">${periodoTexto}</div>
